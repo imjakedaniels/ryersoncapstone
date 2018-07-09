@@ -1,0 +1,1189 @@
+---
+title: "capstone_markdown"
+author: "Jake Daniels"
+date: "July 9, 2018"
+output: html_document
+---
+Packages Required
+```{r}
+#install.packages("tidyverse")
+#install.packages("gmodels")
+#install.packages("plotly")
+#install.packages("reshape2")
+library(tidyverse)
+library(gmodels)
+library(plotly)
+library(reshape2)
+```
+
+Loading in Data
+```{r}
+tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
+```
+
+Class Types
+```{r}
+head(tele, n=5L)
+sapply(tele, class)
+```
+
+Missing Data
+```{r}
+sapply(tele, function(x) round((sum(is.na(x))/length(x)*100),2))
+```
+
+Cleaning all NAs and extreme values
+1:9
+```{r}
+# rev_Mean, mou_Mean, totmrc_Mean, da_mean, ovrmou_Mean, overrev_Mean, vceover_Mean, datover_Mean, roam_Mean NAs: 357
+summary(tele[,1:9])
+
+# observing
+melt(tele[,1:9]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+
+plot(tele$rev_Mean)
+plot(tele$rev_Mean)
+plot(tele$mou_Mean)
+plot(tele$totmrc_Mean)
+plot(tele$da_Mean)
+plot(tele$ovrmou_Mean)
+plot(tele$ovrrev_Mean)
+plot(tele$vceovr_Mean)
+plot(tele$datovr_Mean)
+plot(tele$roam_Mean)
+
+# extreme values detected, creating new set called tele_clean
+tele_clean <- tele
+
+outlier_index <- which(tele_clean$rev_Mean > 3000)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$da_Mean > 100)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$ovrmou_Mean > 2000)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$datovr_Mean > 200)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$roam_Mean > 500)
+tele_clean <- tele_clean[-outlier_index,]
+
+# chose to remove rows since all customers missing same info
+na_index <- which(is.na(tele_clean$rev_Mean))
+tele_clean <- tele_clean[-na_index,]
+
+```
+10:11
+```{r}
+# change_mou & change_rev NAs: 534
+summary(tele_clean[,10:11])
+
+# observing
+melt(tele_clean[,10:11]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+
+plot(tele_clean$change_mou)
+plot(tele_clean$change_rev)
+
+# extreme values detected
+outlier_index <- which(tele_clean$change_mou > 4000)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$change_rev > 1000)
+tele_clean <- tele_clean[-outlier_index,]
+
+# removing NA
+which(is.na(tele_clean$change_mou)) == which(is.na(tele_clean$change_rev))
+na_index <- which(is.na(tele_clean$change_mou))
+tele_clean <- tele_clean[-na_index,]
+
+
+```
+12:20
+```{r}
+# Non NA numerics: looking at distribution and outliers in batches of ~10 vars
+summary(tele_clean[,12:20])
+
+melt(tele_clean[,12:20]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+
+plot(tele_clean$drop_vce_Mean)
+plot(tele_clean$drop_dat_Mean)
+plot(tele_clean$blck_vce_Mean)
+plot(tele_clean$blck_dat_Mean)
+plot(tele_clean$unan_vce_Mean)
+plot(tele_clean$unan_dat_Mean)
+plot(tele_clean$plcd_vce_Mean)
+plot(tele_clean$plcd_dat_Mean)
+plot(tele_clean$recv_vce_Mean)
+
+# extreme value removal
+outlier_index <- which(tele_clean$drop_dat_Mean > 40)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$blck_dat_Mean > 20)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$unan_dat_Mean > 20)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$plcd_dat_Mean > 400)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$plcd_vce_Mean > 2000)
+tele_clean <- tele_clean[-outlier_index,]
+
+```
+21:30
+```{r}
+# Non NA numerics: looking at distribution and outliers in batches of ~10 vars
+summary(tele_clean[,21:30])
+
+melt(tele_clean[,21:30]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+
+plot(tele_clean$recv_sms_Mean)
+plot(tele_clean$comp_vce_Mean)
+plot(tele_clean$comp_dat_Mean)
+plot(tele_clean$custcare_Mean)
+plot(tele_clean$ccrndmou_Mean)
+plot(tele_clean$cc_mou_Mean)
+plot(tele_clean$inonemin_Mean)
+plot(tele_clean$threeway_Mean)
+plot(tele_clean$mou_cvce_Mean)
+plot(tele_clean$mou_cdat_Mean)
+
+# extreme value cleaning
+
+outlier_index <- which(tele_clean$recv_sms_Mean > 95)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$custcare_Mean >300)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$ccrndmou_Mean > 400)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$inonemin_Mean > 1600)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$threeway_Mean > 40)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$mou_cdat_Mean > 1000)
+tele_clean <- tele_clean[-outlier_index,]
+
+```
+31:40
+```{r}
+# Non NA numerics: looking at distribution and outliers in batches of ~10 vars
+summary(tele_clean[,31:40])
+
+melt(tele_clean[,31:40]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+
+plot(tele_clean$mou_rvce_Mean)
+plot(tele_clean$owylis_vce_Mean)
+plot(tele_clean$mouowylisv_Mean)
+plot(tele_clean$iwylis_vce_Mean)
+plot(tele_clean$mouiwylisv_Mean)
+plot(tele_clean$peak_vce_Mean)
+plot(tele_clean$peak_dat_Mean)
+plot(tele_clean$mou_peav_Mean)
+plot(tele_clean$mou_pead_Mean)
+plot(tele_clean$opk_vce_Mean)
+
+# extreme value cleaning
+outlier_index <- which(tele_clean$mou_rvce_Mean > 2200)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$owylis_vce_Mean > 600)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$mouowylisv_Mean > 750)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$mouiwylisv_Mean > 900)
+tele_clean <- tele_clean[-outlier_index,]
+
+```
+41:50
+```{r}
+summary(tele_clean[,41:50])
+
+melt(tele_clean[,41:50]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+
+plot(tele_clean$opk_dat_Mean)
+plot(tele_clean$mou_opkv_Mean)
+plot(tele_clean$mou_opkd_Mean)
+plot(tele_clean$drop_blk_Mean)
+plot(tele_clean$attempt_Mean)
+plot(tele_clean$complete_Mean)
+plot(tele_clean$callfwdv_Mean)
+plot(tele_clean$callwait_Mean)
+
+# extreme value cleaning
+outlier_index <- which(tele_clean$opk_dat_Mean > 150)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$mou_opkd_Mean > 400)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$drop_blk_Mean > 300)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$callfwdv_Mean > 20)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$callwait_Mean > 100)
+tele_clean <- tele_clean[-outlier_index,]
+
+# converting churn into logical
+tele_clean$churn <- ifelse(tele_clean$churn == 1, "TRUE", "FALSE") %>% as.logical()
+
+```
+51:67
+```{r}
+summary(tele_clean[,51:67])
+
+melt(tele_clean[,51:67]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+
+plot(tele_clean$uniqsubs)
+plot(tele_clean$actvsubs)
+plot(tele_clean$totcalls)
+plot(tele_clean$totmou)
+plot(tele_clean$totrev)
+plot(tele_clean$adjrev)
+plot(tele_clean$adjmou)
+plot(tele_clean$adjqty)
+plot(tele_clean$avgrev)
+plot(tele_clean$avgmou)
+plot(tele_clean$avgqty)
+plot(tele_clean$avg3mou)
+plot(tele_clean$avg3qty)
+plot(tele_clean$avg3rev)
+
+# extreme values
+outlier_index <- which(tele_clean$uniqsubs > 100)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$avgrev > 600)
+tele_clean <- tele_clean[-outlier_index,]
+
+# dropping crclscod because it is useless
+tele_clean$crclscod <- NULL
+
+# checking categoricals
+ggplot() +
+geom_bar(aes(x=tele_clean$new_cell))
+
+ggplot() +
+geom_bar(aes(x=tele_clean$asl_flag))
+
+# new_cell majority is ~2/3 Unknown and asl_flag is dominantly No, will still keep new_cell and convert asl_flag to lazy factor
+tele_clean$new_cell <- as.factor(tele_clean$new_cell)
+tele_clean$asl_flag <- ifelse(tele_clean$asl_flag == "Y", 1, 0) %>% as.factor()
+
+```
+68:70
+```{r}
+# avg6 NAs: 2761
+summary(tele_clean[,68:70])
+
+# examining shapes, extreme values
+melt(tele_clean[,68:70]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+  
+plot(tele_clean$avg6mou)
+plot(tele_clean$avg6qty)
+plot(tele_clean$avg6rev)
+
+# we should have this data, opting to put median value in to keep customers to avoid extreme value's impact on mean
+na_index <- which(is.na(tele_clean$avg6mou))
+tele_clean[na_index,]$avg6mou <- median(tele_clean$avg6mou, na.rm = T)
+
+na_index <- which(is.na(tele_clean$avg6qty))
+tele_clean[na_index,]$avg6qty <- median(tele_clean$avg6qty, na.rm = T)
+
+na_index <- which(is.na(tele_clean$avg6rev))
+tele_clean[na_index,]$avg6rev <- median(tele_clean$avg6rev, na.rm = T)
+```
+przm_social_one
+```{r}
+# przm_social_one NAs: 7322
+unique(tele_clean$prizm_social_one)
+
+# clarifying the text and setting NA to unknown
+tele_clean[which(tele_clean$prizm_social_one == "S"),]$prizm_social_one <- "Suburban"
+tele_clean[which(tele_clean$prizm_social_one == "U"),]$prizm_social_one <- "Urban"
+tele_clean[which(tele_clean$prizm_social_one == "T"),]$prizm_social_one <- "Town & Country"
+tele_clean[which(tele_clean$prizm_social_one == "C"),]$prizm_social_one <- "City"
+tele_clean[which(tele_clean$prizm_social_one == "R"),]$prizm_social_one <- "Rural"
+tele_clean[which(is.na(tele_clean$prizm_social_one)),]$prizm_social_one <- "Unknown"
+
+tele_clean$prizm_social_one <- as.factor(tele_clean$prizm_social_one)
+```
+area
+```{r}
+# area NAs: 40
+unique(tele_clean$area)
+
+# choosing to drop customers with missing info
+na_index <- which(is.na(tele_clean$area))
+tele_clean <- tele_clean[-na_index,]
+
+# do i make this a factor?
+tele_clean$area <- as.factor(tele_clean$area)
+```
+dualband
+```{r}
+#dualband NA: 1
+ggplot() +
+geom_bar(aes(x=tele_clean$dualband))
+
+# removing this
+na_index <- which(is.na(tele_clean$dualband))
+tele_clean <- tele_clean[-na_index,]
+
+tele_clean$dualband <- as.factor(tele_clean$dualband)
+```
+refurb_new
+```{r}
+# refurb_new
+ggplot() +
+geom_bar(aes(x=tele_clean$refurb_new))
+
+# making into factor
+tele_clean$refurb_new <- ifelse(tele_clean$refurb_new == "R", 1, 0) %>% as.factor()
+```
+74:76
+```{r}
+summary(tele_clean[,74:76])
+
+melt(tele_clean[,74:76]) %>%
+  ggplot(aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")
+  
+plot(tele_clean$hnd_price)
+plot(tele_clean$phones)
+plot(tele_clean$models)
+
+# extreme values
+outlier_index <- which(tele_clean$phones > 20)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$models > 10)
+tele_clean <- tele_clean[-outlier_index,]
+```
+hnd_price
+```{r}
+# hnd_price
+summary(tele_clean$hnd_price)
+
+# subbing median for missing values
+na_index <- which(is.na(tele_clean$hnd_price))
+tele_clean[na_index,]$hnd_price <- median(tele_clean$hnd_price, na.rm = T)
+```
+hnd_webcap
+```{r}
+# hdn_webcap NA: 10027
+unique(tele_clean$hnd_webcap)
+
+# visualizing spread
+  ggplot() +
+  geom_bar(aes(x=tele_clean$hnd_webcap))
+  
+# already an UNKW column, going to give NA that value
+na_index <- which(is.na(tele_clean$hnd_webcap))
+tele_clean[na_index,]$hnd_webcap <- "UNKW"
+
+tele_clean$hnd_webcap <- as.factor(tele_clean$hnd_webcap)
+```
+truck/rv
+```{r}
+# truck, rv NA: 1710
+summary(tele_clean[,78:79])
+plot(x=tele_clean$truck)
+plot(x=tele_clean$rv)
+
+# dropping from dataset, not important to question
+tele_clean$truck <- NULL
+tele_clean$rv <- NULL
+```
+ownrent
+```{r}
+# ownrent : 33352 NA
+length(which(is.na(tele_clean$ownrent)))
+unique(tele_clean$ownrent)
+
+# creating an U column, going to give NA that value
+na_index <- which(is.na(tele_clean$ownrent))
+tele_clean[na_index,]$ownrent <- "UNKW"
+
+# visualizing spread
+  ggplot() +
+  geom_bar(aes(x=tele_clean$ownrent))
+
+# hardly any renters so I can actually drop this completely for model
+tele_clean$ownrent <- NULL
+```
+lor
+```{r}
+# lor (length of residence) NA: 29,877
+summary(tele_clean$lor)
+
+# I presume this is in years and will be an indicator
+ggplot() +
+  geom_histogram(aes(x = tele_clean$lor)) + 
+  theme_classic()
+  range(tele_clean$lor, na.rm = T)
+
+# replacing median into NA
+na_index <- which(is.na(tele_clean$lor))
+tele_clean[na_index,]$lor <- median(tele_clean$lor, na.rm = T)
+```
+dwlltype
+```{r}
+# dwlltype NA: 31578
+length(which(is.na(tele_clean$dwlltype)))
+unique((tele_clean$dwlltype))
+
+# visualizing
+  ggplot() +
+  geom_bar(aes(x=tele_clean$dwlltype))
+  
+# giving it Unknown Col
+na_index <- which(is.na(tele_clean$dwlltype))
+tele_clean[na_index,]$dwlltype <- "U"
+
+tele_clean$dwlltype <- as.factor(tele_clean$dwlltype)
+
+```
+marital
+```{r}
+# marital NA: 1717
+length(which(is.na(tele_clean$marital)))
+unique(tele_clean$marital)
+
+ggplot() +
+  geom_bar(aes(x=tele_clean$marital))
+
+# already an UNKNOWN column going to give NA that value
+na_index <- which(is.na(tele_clean$marital))
+tele_clean[na_index,]$marital <- "U"
+
+# make factor
+tele_clean$marital <- as.factor(tele_clean$marital)
+
+```
+adults
+```{r}
+# adults NA: 22,767
+summary(tele_clean$adults)
+range(tele_clean$adults, na.rm = T)
+
+# keep the na but convert column to categorical
+tele_clean$adults <- cut(tele_clean$adults, c(0,1,2,3,4,5,6), labels = c("One", "Two","Three","Four","Five","Six"))
+
+levels(tele_clean$adults) <- c(levels(tele_clean$adults), "Unknown")
+na_index <- which(is.na(tele_clean$adults))
+tele_clean[na_index,]$adults <- "Unknown"
+
+tele_clean$adults <- as.factor(tele_clean$adults)
+
+ggplot() +
+  geom_bar(aes(x=tele_clean$adults))
+```
+infobase
+```{r}
+# infobase
+length(which(is.na(tele_clean$infobase)))
+unique(tele_clean$infobase)
+
+# removing since context is beyond scope of paper
+tele_clean$infobase <- NULL
+```
+income
+```{r}
+# income (estimated) NAs: 25169
+summary(tele_clean$income)
+range(tele_clean$income, na.rm=T)
+
+# factoring into levels
+tele_clean$income <- cut(tele_clean$income, c(0,1,2,3,4,5,6,7,8,9), labels = c("One", "Two","Three","Four","Five","Six", "Seven", "Eight", "Nine"))
+
+# adding Unknown category for NA
+levels(tele_clean$income) <- c(levels(tele_clean$income), "Unknown")
+na_index <- which(is.na(tele_clean$income))
+tele_clean[na_index,]$income <- "Unknown"
+
+tele_clean$income <- as.factor(tele_clean$income)
+
+plot(tele_clean$income)
+```
+numbcars
+```{r}
+# numbcars NAs: 48854
+summary(tele_clean$numbcars)
+
+# factoring into levels
+tele_clean$numbcars <- cut(tele_clean$numbcars, c(0,1,2,3), labels = c("One", "Two","Three"))
+
+# adding Unknown category for NA
+levels(tele_clean$numbcars) <- c(levels(tele_clean$numbcars), "Unknown")
+na_index <- which(is.na(tele_clean$numbcars))
+tele_clean[na_index,]$numbcars <- "Unknown"
+
+plot(tele_clean$numbcars)
+```
+HHstatin
+```{r}
+# HHstatin NAs: 37511
+unique(tele_clean$HHstatin)
+
+# beyond the scope of this project, dropping the column
+tele_clean$HHstatin <- NULL
+```
+dwllsize
+```{r}
+# dwllsize NAs: 37511
+unique(tele_clean$dwllsize)
+
+# visualize
+tele_clean %>%
+  select(dwllsize) %>%
+  group_by(dwllsize) %>%
+  ggplot() +
+  geom_bar(aes(x=dwllsize))
+
+# data is scarce and lacks variation, going to drop
+tele_clean$dwllsize <- NULL
+```
+forgntvl
+```{r}
+#forgntvl NAs: 1717
+summary(tele_clean$forgntvl)
+
+#let's assume if we dont know forgntvl it is 0 since a majority is 0 already
+na_index <- which(is.na(tele_clean$forgntvl))
+tele_clean[na_index,]$forgntvl <- 0
+
+hist(tele_clean$forgntvl)
+
+tele_clean$forgntvl<- as.factor(tele_clean$forgntvl)
+```
+ethnic
+```{r}
+# ethnic (Ethnicity roll-up code) NA: 1717
+length(which(is.na(tele_clean$ethnic)))
+
+unique(tele_clean$ethnic)
+
+#visualize
+ggplot() +
+  geom_bar(aes(x=tele_clean$ethnic))
+
+#could be valuable... but I cannot translate the results without a decoder, going to drop
+tele_clean$ethnic <- NULL
+```
+all kids
+```{r}
+# KIDS NAs 1717
+unique(tele_clean$kid0_2)
+length(which(is.na(tele_clean$kid0_2)))
+length(which(is.na(tele_clean$kid3_5)))
+length(which(is.na(tele_clean$kid6_10)))
+length(which(is.na(tele_clean$kid11_15)))
+length(which(is.na(tele_clean$kid16_17)))
+
+which(is.na(tele_clean$kid0_2)) == which(is.na(tele_clean$kid11_15))
+
+# visualize
+tele_clean %>%
+  select(kid0_2) %>%
+  group_by(kid0_2) %>%
+  ggplot() +
+  geom_bar(aes(x=kid0_2))
+
+# U is unknown, Y is Yes so setting all to unknown
+na_index <- which(is.na(tele_clean$kid0_2))
+tele_clean[na_index,85:89] <- "U"
+
+# making into factor
+tele_clean$kid0_2 <- ifelse(tele_clean$kid0_2 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid3_5 <- ifelse(tele_clean$kid3_5 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid6_10 <- ifelse(tele_clean$kid6_10 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid11_15 <- ifelse(tele_clean$kid11_15 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid16_17 <- ifelse(tele_clean$kid16_17 == "Y", 1, 0) %>% as.factor()
+```
+creditcd
+```{r}
+# creditcd NA/; 1717
+
+# same columns as kids
+unique(tele_clean$creditcd)
+
+# visualize
+ggplot() +
+  geom_bar(aes(x=tele_clean$creditcd))
+
+# give No
+na_index <- which(is.na(tele_clean$creditcd))
+tele_clean[na_index,]$creditcd <- "N"
+
+tele_clean$creditcd <- ifelse(tele_clean$creditcd == "Y", 1, 0) %>% as.factor()
+```
+
+Cleaning Check
+```{r}
+# no more NA?
+length(which(is.na(tele_clean)))
+```
+
+
+Renaming Columns for MySQL and Shiny
+```{r}
+names(tele_clean) <- c('Billing.rev_Mean', 'Usage.mou_Mean', 'Billing.totmrc_Mean', 'Usage.da_Mean', 'Usage.ovrmou_Mean', 'Billing.ovrrev_Mean','Billing.vceovr_Mean', 'Billing.datovr_Mean', 'Usage.roam_Mean', 'Usage.change_mou', 'Billing.change_rev', 'Service.drop_vce_Mean', 'Service.drop_data_Mean', 'Service.blck_vce_Mean', 'Service.blck_data_Mean', 'Service.unan_vce_Mean', 'Service.unan_data_Mean', 'Service.plcd_vcd_Mean', 'Service.plcd_data_Mean', 'Service.recv_vce_Mean', 'Service.recv_sms_Mean', 'Usage.comp_vce_Mean', 'Usage.comp_data_Mean', 'CustServ.custcare_Mean', 'CustServ.ccrndmou_Mean', 'CustServ.cc_mou_Mean', 'Usage.inonemin_Mean', 'Usage.threeway_Mean', 'Usage.mou_compvce_Mean', 'Usage.mou_compdata_Mean', 'Usage.mou_rvce_Mean', 'Usage.owylis_vce_Mean', 'Usage.mou_owylisv_Mean', 'Usage.iwylis_vce_Mean', 'Usage.mou_iwylisv_Mean', 'Usage.peak_vce_Mean', 'Usage.peak_data_Mean', 'Usage.mou_peak_vce_Mean', 'Usage.mou_peak_data_Mean', 'Usage.opk_vce_Mean', 'Usage.opk_data_Mean', 'Usage.mou_opk_vce_Mean', 'Usage.mou_opk_data_Mean', 'Service.drop_blk_Mean', 'Service.attempt_Mean', 'Service.complete_Mean', 'Usage.callfwdv_Mean', 'Usage.callwait_Mean', 'Customer.churn', 'Customer.months', 'Customer.uniqsubs', 'Customer.actvsubs', 'Product.new_cell', 'Customer.asl_flag', 'Usage.totcalls', 'Usage.totmou', 'Billing.totrev', 'Billing.adjrev', 'Usage.adjmou', 'Usage.adjqty', 'Billing.avgrev', 'Usage.avgmou', 'Usage.avgqty', 'Usage.avg3mou', 'Usage.avg3qty', 'Billing.avg3rev', 'Usage.avg6mou', 'Usage.avg6qty', 'Billing.avg6rev', 'Customer.prizm_social_one', 'Customer.area', 'Product.dualband', 'Product.refurb_new', 'Product.hnd_price', 'Customer.phones', 'Customer.models', 'Product.hnd_webcap', 'Customer.lor', 'Customer.dwlltype', 'Customer.marital', 'Customer.adults', 'Customer.income', 'Customer.numbcars', 'Customer.forgntvl', 'Customer.kid0_2', 'Customer.kid3_5', 'Customer.kid6-10', 'Customer.kid11_15', 'Customer.kid16_17', 'Billing.creditcd', 'Product.eqpdays', 'Customer.Customer_ID')
+```
+
+Correlations
+```{r}
+nums <- unlist(lapply(tele_clean, is.numeric))  
+res <- cor(tele_clean[,nums], method = "pearson")
+res <- ifelse(res > 0, res^.5, -abs(res)^.5)
+
+#install.packages('corrplot')
+library(corrplot)
+corrplot(res, type = "upper", order = "hclust", tl.col = "black")
+```
+
+Export to Weka for Exploratory Analysis -- see Github
+```{r}
+#install.packages("RWeka")
+library(RWeka)
+write.arff(tele_clean, file = "capstone.arff")
+
+
+```
+
+Creating Subsets for Shiny and SQL
+```{r}
+Billing_info <- tele_clean[,str_detect(names(tele_clean),'Billing')]
+Customer_info <- tele_clean[,str_detect(names(tele_clean),'Customer')]
+Service_info <- tele_clean[,str_detect(names(tele_clean),'Service')]
+CustServ_info <- tele_clean[,str_detect(names(tele_clean),'CustServ')]
+Usage_info <- tele_clean[,str_detect(names(tele_clean),'Usage')]
+Product_info <- tele_clean[,str_detect(names(tele_clean),'Product')]
+```
+
+Writing CSV for SQL hosting
+```{r}
+write_csv(Billing_info, "Billing_info.csv")
+write_csv(Customer_info, "Customer_info.csv")
+write_csv(Service_info, "Service_info.csv")
+write_csv(CustServ_info, "CustServ_info.csv")
+write_csv(Usage_info, "Usage_info.csv")
+write_csv(Product_info, "Product_info.csv")
+```
+
+
+Tweaking values for model_tele_clean
+Billing_Info
+```{r}
+# which distributions benefit from log
+melt(Billing_info) %>%
+ggplot(aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+melt(Billing_info) %>%
+ggplot(aes(x = log(value))) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+# Preparing for model with outliers/log/factoring
+model_tele_clean <- tele_clean
+
+model_tele_clean$Billing.rev_Mean <- log(model_tele_clean$Billing.rev_Mean)
+model_tele_clean$Billing.totmrc_Mean <- log(model_tele_clean$Billing.totmrc_Mean)
+model_tele_clean$Billing.ovrrev_Mean <- log(model_tele_clean$Billing.ovrrev_Mean)
+model_tele_clean$Billing.vceovr_Mean <- log(model_tele_clean$Billing.vceovr_Mean)
+
+outlier_index <- which(model_tele_clean$Billing.datovr_Mean > 200)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+outlier_index <- which(model_tele_clean$Billing.change_rev > 1000 | model_tele_clean$Billing.change_rev < -1000)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+tele_clean$Billing.crclscod <- NULL
+model_tele_clean$Billing.totrev <- log(model_tele_clean$Billing.totrev)
+model_tele_clean$Billing.adjrev <- log(model_tele_clean$Billing.adjrev)
+model_tele_clean$Billing.avgrev <- log(model_tele_clean$Billing.avgrev)
+model_tele_clean$Billing.avg3rev <- log(model_tele_clean$Billing.avg3rev)
+model_tele_clean$Billing.avg6rev <- log(model_tele_clean$Billing.avg6rev)
+
+model_tele_clean$Billing.creditcd <- as.factor(model_tele_clean$Billing.creditcd)
+```
+Customer_info
+```{r}
+# which distributions benefit from log
+melt(Customer_info) %>%
+ggplot(aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+melt(Customer_info) %>%
+ggplot(aes(x = log(value))) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+# new variable to see if divided households will leave
+model_tele_clean$Customer.allsubs <- ifelse(model_tele_clean$Customer.actvsubs != model_tele_clean$Customer.uniqsubs, 1, 0)
+model_tele_clean$Customer.allsubs <- as.factor(model_tele_clean$Customer.allsubs)
+
+# Preparing for model with outliers/log/factoring
+
+## months do I log?
+
+outlier_index <- which(model_tele_clean$Customer.uniqsubs > 50)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Customer.asl_flag <- as.factor(model_tele_clean$Customer.asl_flag)
+model_tele_clean$Customer.prizm_social_one <- as.factor(model_tele_clean$Customer.prizm_social_one)
+
+## #area do i remove?
+
+outlier_index <- which(model_tele_clean$Customer.phones > 10)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Customer.dwlltype <- as.factor(model_tele_clean$Customer.dwlltype)
+model_tele_clean$Customer.forgntvl <- as.factor(model_tele_clean$Customer.forgntvl)
+model_tele_clean$lor_cat <- as.factor(model_tele_clean$Customer.lor_cat)
+
+
+#ASL = Account Spending Limit
+pie(c(length(which((Customer_info$Customer.asl_flag == 'Y'))), length(which((Customer_info$Customer.asl_flag == 'N')))), labels = c('Yes', 'No'))
+```
+Service Info
+```{r}
+# which distributions benefit from log
+melt(Service_info) %>%
+ggplot(aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+melt(Service_info) %>%
+ggplot(aes(x = log(value))) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+# added new variable to measure call completion
+model_tele_clean$Service.completion_Rate<- model_tele_clean$Service.complete_Mean / model_tele_clean$Service.attempt_Mean
+
+# normalizing
+model_tele_clean$Service.drop_vce_Mean <- log(model_tele_clean$Service.drop_vce_Mean)
+
+outlier_index <- which(model_tele_clean$Service.drop_data_Mean > 50)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+outlier_index <- which(model_tele_clean$Service.blck_vce_Mean > 300)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+outlier_index <- which(model_tele_clean$Service.blck_data_Mean > 50)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Service.unan_vce_Mean <- log(model_tele_clean$Service.unan_vce_Mean)
+
+outlier_index <- which(model_tele_clean$Service.unan_data_Mean > 20)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Service.plcd_vcd_Mean <- log(model_tele_clean$Service.plcd_vcd_Mean)
+
+outlier_index <- which(model_tele_clean$Service.plcd_data_Mean > 300)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Service.recv_vce_Mean <- log(model_tele_clean$Service.recv_vce_Mean)
+
+outlier_index <- which(model_tele_clean$Service.recv_sms_Mean > 100)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Service.drop_blk_Mean <- log(model_tele_clean$Service.drop_blk_Mean)
+model_tele_clean$Service.attempt_Mean <- log(model_tele_clean$Service.attempt_Mean)
+model_tele_clean$Service.complete_Mean <- log(model_tele_clean$Service.complete_Mean)
+```
+Customer Service
+```{r}
+# which distributions benefit from log
+melt(CustServ_info) %>%
+ggplot(aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+melt(CustServ_info) %>%
+ggplot(aes(x = log(value))) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+# new variable since all data is averaged over 3 months
+CustServ_info$custserv_calls <- CustServ_info$CustServ.custcare_Mean * 3
+
+# normalizing
+outlier_index <- which(model_tele_clean$CustServ.custcare_Mean > 200)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+outlier_index <- which(model_tele_clean$CustServ.ccrndmou_Mean > 300)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+outlier_index <- which(model_tele_clean$CustServ.cc_mou_Mean > 200)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+```
+Usage Info
+```{r}
+# which distributions benefit from log
+melt(Usage_info) %>%
+ggplot(aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+melt(Usage_info) %>%
+ggplot(aes(x = log(value))) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+# added variable to identify if bill increased from last 3 months
+model_tele_clean$Usage.increase <- ifelse(model_tele_clean$Usage.avgmou > model_tele_clean$Usage.avg3mou, 1, 0)
+model_tele_clean$Usage.increase <- as.factor(model_tele_clean$Usage.increase)
+
+
+# cleaning
+model_tele_clean$Usage.mou_Mean <- log(model_tele_clean$Usage.mou_Mean)
+
+outlier_index <- which(model_tele_clean$Usage.da_Mean > 50)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Usage.ovrmou_Mean <- log(model_tele_clean$Usage.ovrmou_Mean)
+model_tele_clean$Usage.roam_Mean <- log(model_tele_clean$Usage.roam_Mean)
+model_tele_clean$Usage.change_mou <- log(model_tele_clean$Usage.change_mou)
+model_tele_clean$Usage.comp_vce_Mean <- log(model_tele_clean$Usage.comp_vce_Mean)
+
+outlier_index <- which(model_tele_clean$Usage.comp_data_Mean > 200)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Usage.inonemin_Mean <- log(model_tele_clean$Usage.inonemin_Mean)
+
+outlier_index <- which(model_tele_clean$Usage.threeway_Mean > 40)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Usage.mou_compvce_Mean <- log(model_tele_clean$Usage.mou_compvce_Mean)
+model_tele_clean$Usage.mou_compdata_Mean <- log(model_tele_clean$Usage.mou_compdata_Mean)
+model_tele_clean$Usage.mou_rvce_Mean <- log(model_tele_clean$Usage.mou_rvce_Mean)
+model_tele_clean$Usage.owylis_vce_Mean <- log(model_tele_clean$Usage.owylis_vce_Mean)
+model_tele_clean$Usage.mou_owylisv_Mean <- log(model_tele_clean$Usage.mou_owylisv_Mean)
+model_tele_clean$Usage.iwylis_vce_Mean <- log(model_tele_clean$Usage.iwylis_vce_Mean)
+model_tele_clean$Usage.mou_iwylisv_Mean <- log(model_tele_clean$Usage.mou_iwylisv_Mean)
+model_tele_clean$Usage.peak_vce_Mean <- log(model_tele_clean$Usage.peak_vce_Mean)
+
+outlier_index <- which(model_tele_clean$Usage.peak_data_Mean> 100)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Usage.mou_peak_vce_Mean <- log(model_tele_clean$Usage.mou_peak_vce_Mean)
+model_tele_clean$Usage.mou_peak_data_Mean <- log(model_tele_clean$Usage.opk_data_Mean)
+model_tele_clean$Usage.mou_opk_vce_Mean <- log(model_tele_clean$Usage.mou_opk_vce_Mean)
+
+outlier_index <- which(model_tele_clean$Usage.opk_data_Mean> 100)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+outlier_index <- which(model_tele_clean$Usage.callfwdv_Mean > 30)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+outlier_index <- which(model_tele_clean$Usage.callwait_Mean > 150)
+model_tele_clean <- model_tele_clean[-outlier_index,]
+
+model_tele_clean$Usage.totcalls <- log(model_tele_clean$Usage.totcalls)
+model_tele_clean$Usage.totmou <- log(model_tele_clean$Usage.totmou)
+model_tele_clean$Usage.adjmou <- log(model_tele_clean$Usage.adjmou)
+model_tele_clean$Usage.adjqty <- log(model_tele_clean$Usage.adjqty)
+model_tele_clean$Usage.avgmou <- log(model_tele_clean$Usage.avgmou)
+model_tele_clean$Usage.avgqty <- log(model_tele_clean$Usage.avgqty)
+model_tele_clean$Usage.avg3mou <- log(model_tele_clean$Usage.avg3mou)
+model_tele_clean$Usage.avg3qty <- log(model_tele_clean$Usage.avg3qty)
+model_tele_clean$Usage.avg6mou <- log(model_tele_clean$Usage.avg6mou)
+model_tele_clean$Usage.avg6qty <- log(model_tele_clean$Usage.avg6qty)
+
+
+#piechart of how they spend mins
+
+
+#totcalls and avgmou are over the life of the Customer
+
+
+
+#usage.ovr / billing.ovr
+```
+Product Info
+```{r}
+# which distributions benefit from log
+melt(Product_info) %>%
+ggplot(aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+melt(Product_info) %>%
+ggplot(aes(x = log(value))) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+
+#not too much to unpack here
+```
+
+
+Monthly Reporting
+CrossTables relating to Churn
+```{r}
+CrossTable(x = tele_clean$Customer.income, y = tele_clean$Customer.churn, prop.c = F, prop.t = F, prop.chisq = F)
+CrossTable(x = tele_clean$Customer.marital, y = tele_clean$Customer.churn, prop.c = F, prop.t = F, prop.chisq = F)
+
+#Unfortunately, i believe this set is generated
+
+```
+
+Comparing categoricals for monthly report
+x = months
+```{r}
+tele_clean %>%
+  ggplot(aes(x = Customer.months , y = Usage.totmou, color = Customer.income)) +
+  geom_smooth() 
+
+tele_clean %>%
+  ggplot(aes(x = Customer.months , y = Usage.totmou, color = Customer.marital)) +
+  geom_smooth() 
+
+tele_clean %>%
+  ggplot(aes(x = Customer.months , y = Usage.totmou, color = Customer.marital)) +
+  geom_smooth() 
+
+tele_clean %>%
+  ggplot(aes(x = Customer.months , y = Usage.totmou, color = Customer.marital)) +
+  geom_smooth() 
+
+
+tele_clean %>%
+ggplot(aes(x=Customer.months, y=Billing.avgrev, color = Customer.income)) +
+geom_smooth()
+```
+x = eqpdays
+```{r}
+tele_clean %>%
+  ggplot(aes(x = Product.eqpdays , y = CustServ.custcare_Mean, color = Customer.income)) +
+  geom_smooth() 
+
+tele_clean %>%
+  ggplot(aes(x = Product.eqpdays , y = CustServ.custcare_Mean, color = Customer.churn)) +
+  geom_smooth() 
+```
+x= lor
+```{r}
+tele_clean %>%
+  ggplot(aes(x = Customer.lor , y = Billing.avgrev, color = Customer.income)) +
+  geom_smooth() 
+```
+
+Summary Statistics
+AvgPrice per income level
+```{r}
+tele_clean %>%
+  filter(Customer.months > 12) %>%
+  group_by(Customer.income) %>%
+  summarise(AvgHndPerIncome = mean(Product.hnd_price)) %>%
+  arrange(desc(AvgHndPerIncome))
+  
+tele_clean %>%
+  group_by(Customer.income) %>%
+  summarise(avgRevPerIncome = mean(Billing.avgrev)) %>%
+  arrange(desc(avgRevPerIncome))
+
+# Summarize the median GDP and median life expectancy per continent in 2007
+by_continent_2007 <- gapminder %>%
+  filter(year == 2007) %>%
+  group_by(continent) %>%
+  summarise(medianGdpPercap = median(gdpPercap), medianLifeExp = median(lifeExp))
+
+# Use a scatter plot to compare the median GDP and median life expectancy
+
+
+--------
+
+
+
+----
+
+  
+```
++more
+
+Modelling in R
+Subsetting
+```{r}
+set.seed(567)
+
+# Store row numbers for training set: index_train
+index_train <- sample(1:nrow(model_tele_clean), 2/3 * nrow(model_tele_clean))
+
+# Create training set: training_set
+training_set <- model_tele_clean[index_train, ]
+
+# Create test set: test_set
+test_set <- model_tele_clean[-index_train, ]
+
+```
+
+GLM with all variables
+```{r}
+# Change the code below to construct a logistic regression model using all available predictors in the data set
+log_model_full <- glm(Customer.churn ~ ., family = "binomial", data = training_set)
+summary(log_model_full)
+# Make PD-predictions for all test set elements using the the full logistic regression model
+predictions_all_full <- predict(log_model_full, newdata = test_set, type = "response")
+
+# Look at the predictions range
+range(predictions_all_full)
+
+# Make a binary predictions-vector using a cut-off of 15%
+pred_cutoff_15 <- ifelse(predictions_all_full > 0.15, 1, 0)
+
+#In the first argument, you are testing whether a certain value in the predictions-vector is bigger than 0.3. If this is TRUE, R returns "1" (specified in the second argument), if FALSE, R returns "0" (specified in the third argument), representing "default" and "no default", respectively.
+
+# Construct a confusion matrix
+conf_matrix_15 <- table(test_set$Customer.churn, pred_cutoff_15)
+conf_matrix_15
+
+```
+
+Loading Model (old)
+```{r}
+#install.packages("caret")
+#install.packages("pROC")
+#install.packages("e1071")
+library(caret)
+library(lattice)
+library(pROC)
+library(e1071)
+
+control <- trainControl(method="cv", number=10)
+metric <- "Accuracy"
+
+# based on Weka infoGain and pvalue from logi test
+varsToKeep <- c('churn', 'totmrc_Mean', 'roam_Mean', 'change_mou', 'custcare_Mean', 'ccrndmou_Mean', 'cc_mou_Mean', 'threeway_Mean', 'months', 'uniqsubs', 'actvsubs', 'new_cell', 'asl_flag', 'totcalls', 'adjrev', 'adjqty', 'avgmou', 'avg6mou', 'avg6qty', 'prizm_social_one', 'area', 'refurb_new', 'hnd_price', 'hnd_webcap', 'lor', 'income', 'numbcars', 'kid16_17', 'eqpdays')
+
+# splitting into test/train 75/25
+TeleTrainTest <- tele_clean[,varsToKeep]
+training_split <- createDataPartition(tele_clean$Customer.churn, p = 0.75, list=FALSE)
+DstTrainModel <- TeleTrainTest[training_split,]
+DstTestModel <- TeleTrainTest[-training_split,]
+
+trainX <- DstTrainModel[,names(DstTrainModel) != "Customer.churn"]
+preProcValues <- preProcess(x = trainX,method = c("center", "scale"))
+preProcValues
+```
+
+All the different models (take 1+ day to run, image attached)
+```{r}
+# logistic regression
+set.seed(7)
+fit.glm <- train(Customer.churn ~ ., data=DstTrainModel, method="glm", metric=metric, trControl=control)
+
+# linear algorithms
+set.seed(7)
+fit.lda <- train(Customer.churn ~ ., data=DstTrainModel, method="lda", metric=metric, trControl=control)
+
+# CART
+set.seed(7)
+fit.cart <- train(Customer.churn ~ ., data=DstTrainModel, method="rpart", metric=metric, trControl=control)
+
+# kNN
+set.seed(7)
+fit.knn <- train(Customer.churn ~ ., data=DstTrainModel, method="knn", 
+                 metric=metric, trControl=control, preProcess = c("center","scale"), tuneLength = 5)
+# SVM
+set.seed(7)
+fit.svm <- train(Customer.churn ~ ., data=DstTrainModel, method="svmRadial", metric=metric, trControl=control)
+
+# Random Forest
+set.seed(7)
+fit.rf <- train(Customer.churn ~ ., data=DstTrainModel, method="rf", metric=metric, trControl=control)
+
+# Gradient Boost Machine (GBM)
+set.seed(7)
+fit.gbm <- train(Customer.churn ~ ., data=DstTrainModel, method="gbm", 
+                 metric=metric, trControl=control, verbose=FALSE)
+```
+
+Compare Results
+```{r}
+results <- resamples(list(
+    glm=fit.glm, 
+    lda=fit.lda, 
+    cart=fit.cart,
+    knn=fit.knn,
+    svm=fit.svm, 
+    rf=fit.rf,
+    gbm=fit.gbm
+))
+#summary(results)
+# compare accuracy of models
+dotplot(results)
+
+
+AccCalc <- function(TestFit, name) {
+    # prediction 
+    DstTestModelClean <- DstTestModel
+    DstTestModelClean$churn <- NA
+    predictedval <- predict(TestFit, newdata=DstTestModelClean)
+    
+    # summarize results with confusion matrix
+    cm <- confusionMatrix(predictedval, DstTestModel$Customer.churn)
+    
+    # calculate accuracy of the model
+    Accuracy<-round(cm$overall[1],2)
+    acc <- as.data.frame(Accuracy)
+ 
+    roc_obj <- roc(DstTestModel$Customer.churn, as.numeric(predictedval))
+    acc$Auc <- auc(roc_obj)
+    
+    acc$FitName <- name
+    return(acc)
+}
+
+accAll <- AccCalc(fit.glm, "glm")
+accAll <- rbind(accAll, AccCalc(fit.lda, "lda"))
+accAll <- rbind(accAll, AccCalc(fit.cart, "cart"))
+accAll <- rbind(accAll, AccCalc(fit.knn, "knn"))
+accAll <- rbind(accAll, AccCalc(fit.svm, "svm"))
+accAll <- rbind(accAll, AccCalc(fit.rf, "rf"))
+accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
+rownames(accAll) <- c()
+arrange(accAll,desc(Accuracy))
+```
