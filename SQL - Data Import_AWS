@@ -1,5 +1,11 @@
-USE capstoneryersonMYSQL;
+Connection Name: ryersnocapstoneMySQL
+Connection Method: Standard (TCP/IP)
+Hostname: ryersoncapstonemysql.c5vlumhrtljy.us-east-1.rds.amazonaws.com
+Port: 3306
+Username: xxxxx
+Pass: xxxxx
 
+USE capstoneryersonMYSQL;
 
 CREATE TABLE Billing (
 Customer_ID VARCHAR(10),
