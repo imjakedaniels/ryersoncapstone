@@ -18,6 +18,25 @@ library(reshape2)
 
 Loading in Data
 ```{r}
+#install.packages("DBI")
+library(DBI)
+#install.packages("RMySQL")
+library(RMySQL)
+
+# Reverse Engineered my SQL script and synced to main server
+
+cn <- dbConnect(drv      = RMySQL::MySQL(), 
+                username = "root", 
+                password = "daniels11", 
+                host     = "ryersoncapstonemysql.c5vlumhrtljy.us-east-1.rds.amazonaws.com", 
+                port     = 3306, 
+                dbname   = "capstoneryersonMYSQL")
+
+Billing_info <- dbGetQuery(cn, "SELECT * FROM Billing;")
+
+
+dbDisconnect(cn)
+
 tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
 ```
 
@@ -684,9 +703,8 @@ Export to Weka for Exploratory Analysis -- see Github
 #install.packages("RWeka")
 library(RWeka)
 write.arff(tele_clean, file = "capstone.arff")
-
-
 ```
+
 
 Creating Subsets for Shiny and SQL
 ```{r}
@@ -696,6 +714,14 @@ Service_info <- tele_clean[,str_detect(names(tele_clean),'Service')]
 CustServ_info <- tele_clean[,str_detect(names(tele_clean),'CustServ')]
 Usage_info <- tele_clean[,str_detect(names(tele_clean),'Usage')]
 Product_info <- tele_clean[,str_detect(names(tele_clean),'Product')]
+
+# Keys
+Billing_info <- cbind(Customer_info$Customer.Customer_ID, Billing_info)
+CustServ_info <- cbind(Customer_info$Customer.Customer_ID, CustServ_info)
+Product_info <- cbind(Customer_info$Customer.Customer_ID, Product_info)
+Service_info <- cbind(Customer_info$Customer.Customer_ID, Service_info)
+Usage_info <- cbind(Customer_info$Customer.Customer_ID, Usage_info)
+
 ```
 
 Writing CSV for SQL hosting
