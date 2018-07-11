@@ -32,9 +32,8 @@ dbDisconnect(cn)
 Execute Correcting NA Values.R
 ```{r}
 # had to create a script as a workaround for NA numerics values defaulting to 0 when pulled from RDBMS, manually inserting with script
-
-#tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
-
+library(knitr)
+read_chunk('../ryersoncapstone/R - Correcting NA Values.R')
 ```
 
 
@@ -50,78 +49,236 @@ library(plotly)
 library(reshape2)
 ```
 
-Class Types
+Cleaning NA/Extreme Values
+
+Billing
+
+Class Types and Structure
 ```{r}
-# correct classes script
 glimpse(Billing)
-summary(Billing)
+```
+
+%NA
+```{r}
 sapply(Billing, function(x) round((sum(is.na(x))/length(x)*100),3))
-
-
-
-Customer[which(is.na(tele$area)),]
-which(Customer$area == 'NA')
-
 ```
 
-Missing Data
+Visualizing
 ```{r}
-sapply(tele, function(x) round((sum(is.na(x))/length(x)*100),2))
-```
-
-
-
-Cleaning all NAs and extreme values
-1:9
-```{r}
-# rev_Mean, mou_Mean, totmrc_Mean, da_mean, ovrmou_Mean, overrev_Mean, vceover_Mean, datover_Mean, roam_Mean NAs: 357
-summary(tele[,1:9])
-
 # observing
-melt(tele[,1:9]) %>%
+melt(Billing) %>%
   ggplot(aes(x = value)) + 
   stat_density() + 
-  facet_wrap(~variable, scales = "free")
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
 
-plot(tele$rev_Mean)
-plot(tele$rev_Mean)
-plot(tele$mou_Mean)
-plot(tele$totmrc_Mean)
-plot(tele$da_Mean)
-plot(tele$ovrmou_Mean)
-plot(tele$ovrrev_Mean)
-plot(tele$vceovr_Mean)
-plot(tele$datovr_Mean)
-plot(tele$roam_Mean)
+Billing %>%
+ggplot() +
+geom_bar(aes(x=creditcd)) +
+  theme_bw()
+```
+Cleaning all NAs and extreme values, combining all to drop rows easier
+```{r}
+df1 <- inner_join(Billing, Customer) 
+df2 <- inner_join(df1, CustService) 
+df3 <- inner_join(df2, Operations) 
+df4 <- inner_join(df3, Product) 
+tele_clean <- inner_join(df4, Service)
+```
 
-# extreme values detected, creating new set called tele_clean
-tele_clean <- tele
+Billing 2:13
+```{r}
+## NA
+summary(tele_clean[,2:13])
+
+# chose to drop these rows since same customers missing 5 variables [,2:6] of numeric info
+head(Billing[which(is.na(tele_clean[,2:13]$rev_Mean)),])
+na_index <- which(is.na(tele_clean[,2:13]$rev_Mean))
+tele_clean <- tele_clean[-na_index,]
+
+# change_rev had more instances of NA - opting to drop
+na_index <- which(is.na(tele_clean$change_rev))
+tele_clean <- tele_clean[-na_index,]
+
+# avg6rev we should have this data, opting to put median value in to keep customers to avoid extreme value's impact on mean
+na_index <- which(is.na(tele_clean$avg6rev))
+tele_clean[na_index,]$avg6rev <- median(tele_clean$avg6rev, na.rm = T)
+
+# creditcd, converting NA into N (no) and factor making Y/N into 1/0 factor
+na_index <- which(is.na(tele_clean$creditcd))
+tele_clean[na_index,]$creditcd <- "N"
+
+tele_clean$creditcd <- ifelse(tele_clean$creditcd == "Y", 1, 0) %>% as.factor()
+
+```
+
+
+Extreme Values
+```{r}
+# highlighting the extreme values then dropping them 
+plot(Billing_clean$rev_Mean)
+plot(Billing_clean$datovr_Mean)
+plot(Billing_clean$change_rev)
 
 outlier_index <- which(tele_clean$rev_Mean > 3000)
-tele_clean <- tele_clean[-outlier_index,]
-
-outlier_index <- which(tele_clean$da_Mean > 100)
-tele_clean <- tele_clean[-outlier_index,]
-
-outlier_index <- which(tele_clean$ovrmou_Mean > 2000)
 tele_clean <- tele_clean[-outlier_index,]
 
 outlier_index <- which(tele_clean$datovr_Mean > 200)
 tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$roam_Mean > 500)
+outlier_index <- which(tele_clean$change_rev > 2000)
+tele_clean <- tele_clean[-outlier_index,]
+```
+
+Customer (numerics) 
+```{r}
+## NA
+summary(tele_clean[,14:42])
+
+# only one NA, same customer - dropping
+which(is.na(tele_clean$phones)) == which(is.na(tele_clean$models))
+  na_index <- which(is.na(tele_clean$phones))
+  tele_clean <- tele_clean[-na_index,]
+
+# same customer information missing, assume they do not have - assigning 0
+sum(which(is.na(tele_clean$truck))) == sum(which(is.na(tele_clean$rv)))
+  tele_clean[which(is.na(tele_clean$truck)),]$truck <- 0
+  tele_clean[which(is.na(tele_clean$rv)),]$rv <- 0
+
+# lor (length of residence in years): - assigning the median
+  na_index <- which(is.na(tele_clean$lor))
+  tele_clean[na_index,]$lor <- median(tele_clean$lor, na.rm = T)
+
+# adults: keep the na by convert column to factors - anyone with 3-6 adults are combined into one
+tele_clean$adults <- cut(tele_clean$adults, c(0,1,2,6), labels = c("One", "Two","Three+"))
+  levels(tele_clean$adults) <- c(levels(tele_clean$adults), "UNKWN")
+  na_index <- which(is.na(tele_clean$adults))
+  tele_clean[na_index,]$adults <- "UNKWN"
+tele_clean$adults <- as.factor(tele_clean$adults)
+
+# income (estimated) - convert to Low (1-3), Medium(4-6), High(7-9) - putting NA into Medium(avg)
+tele_clean$income <- cut(tele_clean$income, c(0,3,6,9), labels = c("Low", "Medium","High"))
+  na_index <- which(is.na(tele_clean$income))
+  tele_clean[na_index,]$income <- "Medium"
+tele_clean$income <- as.factor(tele_clean$income)
+
+# numbcars NAs: 48854 - half data is missing, NA likely means 0 cars, column is poorly kept so I am dropping it.
+tele_clean$numbcars <- NULL
+
+#forgntvlL: let's assume if we dont know forgntvl it is 0 since a majority is 0 already
+na_index <- which(is.na(tele_clean$forgntvl))
+tele_clean[na_index,]$forgntvl <- 0
+tele_clean$forgntvl<- as.factor(tele_clean$forgntvl)
+```
+```{r}
+#EXREME VALUES
+```
+
+Customer (Categoricals) 
+```{r}
+ggplot() +
+geom_bar(aes(x=tele_clean$dwllsize))
+
+# crdlscod: dropping full column because it has 30+ unique values and is useless for models/reports without any translation
+tele_clean$crdlscod <- NULL
+
+# asl_flag: convert to 1,0 factor
+tele_clean$asl_flag <- ifelse(tele_clean$asl_flag == "Y", 1, 0) %>% as.factor()
+
+# prizm_social_one: clarifying the text and setting NA to unknown
+tele_clean[which(tele_clean$prizm_social_one == "S"),]$prizm_social_one <- "Suburban"
+tele_clean[which(tele_clean$prizm_social_one == "U"),]$prizm_social_one <- "Urban"
+tele_clean[which(tele_clean$prizm_social_one == "T"),]$prizm_social_one <- "Town & Country"
+tele_clean[which(tele_clean$prizm_social_one == "C"),]$prizm_social_one <- "City"
+tele_clean[which(tele_clean$prizm_social_one == "R"),]$prizm_social_one <- "Rural"
+tele_clean[which(is.na(tele_clean$prizm_social_one)),]$prizm_social_one <- "UNKWN"
+
+tele_clean$prizm_social_one <- as.factor(tele_clean$prizm_social_one)
+
+# area: dropping since we don't know where they live
+na_index <- which(is.na(tele_clean$area))
+tele_clean <- tele_clean[-na_index,]
+tele_clean$area <- as.factor(tele_clean$area)
+
+# own_rent:
+tele_clean$own_rent <- as.factor(tele_clean$own_rent)
+
+# dwlltype: creating UNKWN column for NA 
+na_index <- which(is.na(tele_clean$dwlltype))
+tele_clean[na_index,]$dwlltype <- "UNKWN"
+tele_clean$dwlltype <- as.factor(tele_clean$dwlltype)
+
+# marital: - already an UNKNOWN column going to give NA that value
+na_index <- which(is.na(tele_clean$marital))
+tele_clean[na_index,]$marital <- "U"
+tele_clean$marital <- as.factor(tele_clean$marital)
+
+# infobase: two resutls: one option only has 221 inputs the rest are NA values - dropping the variable
+tele_clean$infobase <- NULL
+
+# HHStatin - making into factor
+tele_clean$HHStatin <- as.factor(tele_clean$HHStatin)
+
+# dwllsize - data is scarce and lacks variation, going to drop variable
+tele_clean$dwllsize <- NULL
+
+# forgntvl - let's assume if we dont know forgntvl it is 0 since a majority is 0 already
+na_index <- which(is.na(tele_clean$forgntvl))
+tele_clean[na_index,]$forgntvl <- 0
+tele_clean$forgntvl<- as.factor(tele_clean$forgntvl)
+
+# ethnic (Ethnicity roll-up code) could be valuable for demographics
+na_index <- which(is.na(tele_clean$ethnic))
+tele_clean[na_index,]$ethnic <- "UNKWN"
+tele_clean$ethnic <- as.factor(tele_clean$ethnic)
+
+# kids - U is unknown, Y is Yes so setting all to unknown
+sum(which(is.na(tele_clean$kid0_2))) == sum(which(is.na(tele_clean$kid11_15)))
+
+na_index <- which(is.na(tele_clean$kid0_2))
+tele_clean[na_index,85:89] <- "U"
+
+# making into factor
+tele_clean$kid0_2 <- ifelse(tele_clean$kid0_2 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid3_5 <- ifelse(tele_clean$kid3_5 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid6_10 <- ifelse(tele_clean$kid6_10 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid11_15 <- ifelse(tele_clean$kid11_15 == "Y", 1, 0) %>% as.factor()
+tele_clean$kid16_17 <- ifelse(tele_clean$kid16_17 == "Y", 1, 0) %>% as.factor()
+```
+
+CustService
+```{r}
+summary(tele_clean[,39:41])
+
+# Extreme Values
+plot(tele_clean$custcare_Mean)
+plot(tele_clean$ccrndmou_Mean)
+plot(tele_clean$cc_mou_Mean)
+
+outlier_index <- which(tele_clean$custcare_Mean >300)
 tele_clean <- tele_clean[-outlier_index,]
 
-# chose to remove rows since all customers missing same info
-na_index <- which(is.na(tele_clean$rev_Mean))
-tele_clean <- tele_clean[-na_index,]
+outlier_index <- which(tele_clean$ccrndmou_Mean > 400)
+tele_clean <- tele_clean[-outlier_index,]
 
+outlier_index <- which(tele_clean$cc_mou_Mean > 300)
+tele_clean <- tele_clean[-outlier_index,]
 ```
-10:11
-```{r}
-# change_mou & change_rev NAs: 534
-summary(tele_clean[,10:11])
 
+Operations (numerics)
+```{r}
+summary(tele_clean[,42:77])
+
+# avg6mou and avg6qty: we should have this data, opting to put median value in to keep customers to avoid extreme value's impact on mean
+na_index <- which(is.na(tele_clean$avg6mou))
+tele_clean[na_index,]$avg6mou <- median(tele_clean$avg6mou, na.rm = T)
+
+na_index <- which(is.na(tele_clean$avg6qty))
+tele_clean[na_index,]$avg6qty <- median(tele_clean$avg6qty, na.rm = T)
+```
+
+
+```{r}
 # observing
 melt(tele_clean[,10:11]) %>%
   ggplot(aes(x = value)) + 
@@ -328,9 +485,6 @@ tele_clean <- tele_clean[-outlier_index,]
 outlier_index <- which(tele_clean$avgrev > 600)
 tele_clean <- tele_clean[-outlier_index,]
 
-# dropping crclscod because it is useless
-tele_clean$crclscod <- NULL
-
 # checking categoricals
 ggplot() +
 geom_bar(aes(x=tele_clean$new_cell))
@@ -339,6 +493,11 @@ ggplot() +
 geom_bar(aes(x=tele_clean$asl_flag))
 
 # new_cell majority is ~2/3 Unknown and asl_flag is dominantly No, will still keep new_cell and convert asl_flag to lazy factor
+# dropping crclscod because it is useless
+tele_clean$crclscod <- NULL
+tele_clean$asl_flag <- ifelse(tele_clean$asl_flag == "Y", 1, 0) %>% as.factor()
+
+
 tele_clean$new_cell <- as.factor(tele_clean$new_cell)
 tele_clean$asl_flag <- ifelse(tele_clean$asl_flag == "Y", 1, 0) %>% as.factor()
 
@@ -677,23 +836,6 @@ tele_clean$kid6_10 <- ifelse(tele_clean$kid6_10 == "Y", 1, 0) %>% as.factor()
 tele_clean$kid11_15 <- ifelse(tele_clean$kid11_15 == "Y", 1, 0) %>% as.factor()
 tele_clean$kid16_17 <- ifelse(tele_clean$kid16_17 == "Y", 1, 0) %>% as.factor()
 ```
-creditcd
-```{r}
-# creditcd NA/; 1717
-
-# same columns as kids
-unique(tele_clean$creditcd)
-
-# visualize
-ggplot() +
-  geom_bar(aes(x=tele_clean$creditcd))
-
-# give No
-na_index <- which(is.na(tele_clean$creditcd))
-tele_clean[na_index,]$creditcd <- "N"
-
-tele_clean$creditcd <- ifelse(tele_clean$creditcd == "Y", 1, 0) %>% as.factor()
-```
 
 Cleaning Check
 ```{r}
@@ -709,8 +851,9 @@ names(tele_clean) <- c('Billing.rev_Mean', 'Usage.mou_Mean', 'Billing.totmrc_Mea
 
 Correlations
 ```{r}
+# spearman because non-parametrics
 nums <- unlist(lapply(tele_clean, is.numeric))  
-res <- cor(tele_clean[,nums], method = "pearson")
+res <- cor(tele_clean[,nums], method = "spearman")
 res <- ifelse(res > 0, res^.5, -abs(res)^.5)
 
 #install.packages('corrplot')
@@ -724,36 +867,6 @@ Export to Weka for Exploratory Analysis -- see Github
 library(RWeka)
 write.arff(tele_clean, file = "capstone.arff")
 ```
-
-
-Creating Subsets for Shiny and SQL
-```{r}
-Billing_info <- tele_clean[,str_detect(names(tele_clean),'Billing')]
-Customer_info <- tele_clean[,str_detect(names(tele_clean),'Customer')]
-Service_info <- tele_clean[,str_detect(names(tele_clean),'Service')]
-CustServ_info <- tele_clean[,str_detect(names(tele_clean),'CustServ')]
-Usage_info <- tele_clean[,str_detect(names(tele_clean),'Usage')]
-Product_info <- tele_clean[,str_detect(names(tele_clean),'Product')]
-
-# Keys
-Billing_info <- cbind(Customer_info$Customer.Customer_ID, Billing_info)
-CustServ_info <- cbind(Customer_info$Customer.Customer_ID, CustServ_info)
-Product_info <- cbind(Customer_info$Customer.Customer_ID, Product_info)
-Service_info <- cbind(Customer_info$Customer.Customer_ID, Service_info)
-Usage_info <- cbind(Customer_info$Customer.Customer_ID, Usage_info)
-
-```
-
-Writing CSV for SQL hosting
-```{r}
-write_csv(Billing_info, "Billing_info.csv")
-write_csv(Customer_info, "Customer_info.csv")
-write_csv(Service_info, "Service_info.csv")
-write_csv(CustServ_info, "CustServ_info.csv")
-write_csv(Usage_info, "Usage_info.csv")
-write_csv(Product_info, "Product_info.csv")
-```
-
 
 Tweaking values for model_tele_clean
 Billing_Info
