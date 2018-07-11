@@ -1,0 +1,179 @@
+Connection Name: ryersnocapstoneMySQL
+Connection Method: Standard (TCP/IP)
+Hostname: ryersoncapstonemysql.c5vlumhrtljy.us-east-1.rds.amazonaws.com
+Port: 3306
+Username: xxxxx
+Pass: xxxxx
+
+USE capstoneryersonMYSQL;
+
+DROP TABLE IF EXISTS Billing;
+CREATE TABLE Billing (
+Customer_ID VARCHAR(10),
+rev_Mean decimal(9,3),
+totmrc_Mean decimal(9,3),
+ovrrev_Mean decimal(9,3),
+vceovr_Mean decimal(9,3),
+datovr_Mean decimal(9,3),
+change_rev decimal(9,3),
+totrev decimal(9,3),
+adjrev decimal(9,3),
+avgrev decimal(9,3),
+avg3rev decimal(9,3),
+avg6rev decimal(9,3),
+creditcd CHAR(1),
+PRIMARY KEY(Customer_ID)
+);
+LOAD DATA LOCAL INFILE  
+'C:/Users/Jake/Documents/ryersoncapstone/Billing_info.csv'
+INTO TABLE Billing 
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+DROP TABLE IF EXISTS Customer;
+CREATE TABLE Customer (
+churn int,
+months int,       
+uniqsubs int,      
+actvsubs int,        
+crdlscod VARCHAR(2),
+asl_flag VARCHAR(1),         
+prizm_social_one VARCHAR(1),
+area VARCHAR(50),             
+phones int,         
+models int,   
+truck int,
+rv int,
+own_rent VARCHAR(1),        
+lor int,             
+dwlltype VARCHAR(1),         
+marital VARCHAR(1),         
+adults int,
+infobase VARCHAR(1),           
+income int,          
+numbcars int,   
+HHStatin VARCHAR(1), 
+dwllsize VARCHAR(1),     
+forgntvl int,
+ethnic VARCHAR(1),        
+kid0_2 VARCHAR(1),            
+kid3_5 VARCHAR(1),         
+kid6_10 VARCHAR(1),         
+kid11_15 VARCHAR(1),       
+kid16_17 VARCHAR(1),         
+Customer_ID VARCHAR(10),
+PRIMARY KEY(Customer_ID)
+);
+LOAD DATA LOCAL INFILE  
+'C:/Users/Jake/Documents/ryersoncapstone/Customer_info.csv'
+INTO TABLE Customer 
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+DROP TABLE IF EXISTS CustServ;
+CREATE TABLE CustServ (
+Customer_ID VARCHAR(10), 
+custcare_Mean decimal(9,3),        
+ccrndmou_Mean decimal(9,3),         
+cc_mou_Mean decimal(9,3),
+PRIMARY KEY(Customer_ID)
+);
+LOAD DATA LOCAL INFILE  
+'C:/Users/Jake/Documents/ryersoncapstone/CustServ_info.csv'
+INTO TABLE CustServ 
+FIELDS TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+DROP TABLE IF EXISTS Product;
+CREATE TABLE Product (
+Customer_ID VARCHAR(10), 
+new_cell VARCHAR(1),                 
+dualband VARCHAR(1),                  
+refurb_new VARCHAR(1),                
+hnd_price decimal(9,2),                  
+hnd_webcap VARCHAR(4),                 
+eqpdays int,
+PRIMARY KEY(Customer_ID)
+);
+LOAD DATA LOCAL INFILE  
+'C:/Users/Jake/Documents/ryersoncapstone/Product_info.csv'
+INTO TABLE Product 
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n' 
+IGNORE 1 ROWS;
+
+DROP TABLE IF EXISTS Service;
+CREATE TABLE Service (
+Customer_ID VARCHAR(10), 
+drop_vce_Mean decimal(9,3),              
+drop_data_Mean decimal(9,3),             
+blck_vce_Mean decimal(9,3),              
+blck_data_Mean decimal(9,3),              
+unan_vce_Mean decimal(9,3),               
+unan_data_Mean decimal(9,3),              
+plcd_vcd_Mean decimal(9,3),              
+plcd_data_Mean decimal(9,3),              
+recv_vce_Mean decimal(9,3),               
+recv_sms_Mean decimal(9,3),                
+drop_blk_Mean decimal(9,3),              
+attempt_Mean decimal(9,3),                
+complete_Mean decimal(9,3), 
+PRIMARY KEY(Customer_ID)
+);
+LOAD DATA LOCAL INFILE  
+'C:/Users/Jake/Documents/ryersoncapstone/Service_info.csv'
+INTO TABLE Service 
+FIELDS TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+DROP TABLE IF EXISTS Operations;
+CREATE TABLE Operations (
+Customer_ID VARCHAR(10), 
+mou_Mean decimal(9,3),                
+da_Mean decimal(9,3),                
+ovrmou_Mean decimal(9,3),           
+roam_Mean decimal(9,3),              
+change_mou decimal(9,3),              
+comp_vce_Mean decimal(9,3),           
+comp_data_Mean decimal(9,3),         
+inonemin_Mean decimal(9,3),           
+threeway_Mean decimal(9,3),           
+mou_compvce_Mean decimal(9,3),        
+mou_compdata_Mean decimal(9,3),      
+mou_rvce_Mean decimal(9,3),           
+owylis_vce_Mean decimal(9,3),         
+mou_owylisv_Mean decimal(9,3),        
+iwylis_vce_Mean decimal(9,3),        
+mou_iwylisv_Mean decimal(9,3),        
+peak_vce_Mean decimal(9,3),           
+peak_data_Mean decimal(9,3),        
+mou_peak_vce_Mean decimal(9,3),      
+mou_peak_data_Mean decimal(9,3),     
+opk_vce_Mean decimal(9,3),            
+opk_data_Mean decimal(9,3),         
+mou_opk_vce_Mean decimal(9,3),       
+mou_opk_data_Mean decimal(9,3),       
+callfwdv_Mean decimal(9,3),           
+callwait_Mean decimal(9,3),           
+totcalls int,               
+totmou int,                  
+adjmou int,                  
+adjqty int,                  
+avgmou decimal(9,3),                 
+avgqty decimal(9,3),                  
+avg3mou decimal(9,3),                
+avg3qty decimal(9,3),                 
+avg6mou decimal(9,3),                
+avg6qty decimal(9,3),
+PRIMARY KEY(Customer_ID)
+);
+LOAD DATA LOCAL INFILE  
+'C:/Users/Jake/Documents/ryersoncapstone/Operations_info.csv'
+INTO TABLE Operations 
+FIELDS TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
