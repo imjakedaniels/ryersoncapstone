@@ -4,8 +4,42 @@ author: "Jake Daniels"
 date: "July 9, 2018"
 output: html_document
 ---
-Packages Required
+
+Loading in Data from AWS MySQL
 ```{r}
+#install.packages("DBI")
+library(DBI)
+#install.packages("RMySQL")
+library(RMySQL)
+
+# Utilizing .Renviron to mask sensitive information
+cn <- dbConnect(drv      = RMySQL::MySQL(), 
+                username = "root", 
+                password = Sys.getenv("MY_PASS"), 
+                host     = Sys.getenv("MY_HOST"), 
+                port     = 3306, 
+                dbname   = "capstoneryersonMYSQL")
+
+Billing <- dbGetQuery(cn, "SELECT * FROM Billing;")
+Customer <- dbGetQuery(cn, "SELECT * FROM Customer;")
+CustService <- dbGetQuery(cn, "SELECT * FROM CustServ;")
+Operations <- dbGetQuery(cn, "SELECT * FROM Operations;")
+Product <- dbGetQuery(cn, "SELECT * FROM Product;")
+Service <- dbGetQuery(cn, "SELECT * FROM Service;")
+
+dbDisconnect(cn)
+```
+Execute Correcting NA Values.R
+```{r}
+# had to create a script as a workaround for NA numerics values defaulting to 0 when pulled from RDBMS, manually inserting with script
+
+#tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
+
+```
+
+
+Cleaning & Visual Packages Required
+```{r, echo=FALSE}
 #install.packages("tidyverse")
 #install.packages("gmodels")
 #install.packages("plotly")
@@ -16,40 +50,26 @@ library(plotly)
 library(reshape2)
 ```
 
-Loading in Data
-```{r}
-#install.packages("DBI")
-library(DBI)
-#install.packages("RMySQL")
-library(RMySQL)
-
-# Reverse Engineered my SQL script and synced to main server
-
-cn <- dbConnect(drv      = RMySQL::MySQL(), 
-                username = "root", 
-                password = "daniels11", 
-                host     = "ryersoncapstonemysql.c5vlumhrtljy.us-east-1.rds.amazonaws.com", 
-                port     = 3306, 
-                dbname   = "capstoneryersonMYSQL")
-
-Billing_info <- dbGetQuery(cn, "SELECT * FROM Billing;")
-
-
-dbDisconnect(cn)
-
-tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
-```
-
 Class Types
 ```{r}
-head(tele, n=5L)
-sapply(tele, class)
+# correct classes script
+glimpse(Billing)
+summary(Billing)
+sapply(Billing, function(x) round((sum(is.na(x))/length(x)*100),3))
+
+
+
+Customer[which(is.na(tele$area)),]
+which(Customer$area == 'NA')
+
 ```
 
 Missing Data
 ```{r}
 sapply(tele, function(x) round((sum(is.na(x))/length(x)*100),2))
 ```
+
+
 
 Cleaning all NAs and extreme values
 1:9
