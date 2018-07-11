@@ -1,3 +1,4 @@
+
 tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
 
 Billing[which(is.na(tele$rev_Mean)),]$rev_Mean <- NA
