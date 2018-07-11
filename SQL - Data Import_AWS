@@ -7,6 +7,7 @@ Pass: xxxxx
 
 USE capstoneryersonMYSQL;
 
+DROP TABLE IF EXISTS Billing;
 CREATE TABLE Billing (
 Customer_ID VARCHAR(10),
 rev_Mean decimal(9,3),
@@ -23,14 +24,14 @@ avg6rev decimal(9,3),
 creditcd CHAR(1),
 PRIMARY KEY(Customer_ID)
 );
-
 LOAD DATA LOCAL INFILE  
 'C:/Users/Jake/Documents/ryersoncapstone/Billing_info.csv'
 INTO TABLE Billing 
 FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 
-
+DROP TABLE IF EXISTS Customer;
 CREATE TABLE Customer (
 churn int,
 months int,       
@@ -64,14 +65,14 @@ kid16_17 VARCHAR(1),
 Customer_ID VARCHAR(10),
 PRIMARY KEY(Customer_ID)
 );
-
 LOAD DATA LOCAL INFILE  
 'C:/Users/Jake/Documents/ryersoncapstone/Customer_info.csv'
 INTO TABLE Customer 
 FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 
-
+DROP TABLE IF EXISTS CustServ;
 CREATE TABLE CustServ (
 Customer_ID VARCHAR(10), 
 custcare_Mean decimal(9,3),        
@@ -79,14 +80,14 @@ ccrndmou_Mean decimal(9,3),
 cc_mou_Mean decimal(9,3),
 PRIMARY KEY(Customer_ID)
 );
-
 LOAD DATA LOCAL INFILE  
 'C:/Users/Jake/Documents/ryersoncapstone/CustServ_info.csv'
 INTO TABLE CustServ 
 FIELDS TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 
-
+DROP TABLE IF EXISTS Product;
 CREATE TABLE Product (
 Customer_ID VARCHAR(10), 
 new_cell VARCHAR(1),                 
@@ -97,14 +98,14 @@ hnd_webcap VARCHAR(4),
 eqpdays int,
 PRIMARY KEY(Customer_ID)
 );
-
 LOAD DATA LOCAL INFILE  
 'C:/Users/Jake/Documents/ryersoncapstone/Product_info.csv'
 INTO TABLE Product 
-FIELDS TERMINATED BY ',' 
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n' 
 IGNORE 1 ROWS;
 
-
+DROP TABLE IF EXISTS Service;
 CREATE TABLE Service (
 Customer_ID VARCHAR(10), 
 drop_vce_Mean decimal(9,3),              
@@ -122,14 +123,14 @@ attempt_Mean decimal(9,3),
 complete_Mean decimal(9,3), 
 PRIMARY KEY(Customer_ID)
 );
-
 LOAD DATA LOCAL INFILE  
 'C:/Users/Jake/Documents/ryersoncapstone/Service_info.csv'
 INTO TABLE Service 
 FIELDS TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 
-
+DROP TABLE IF EXISTS Operations;
 CREATE TABLE Operations (
 Customer_ID VARCHAR(10), 
 mou_Mean decimal(9,3),                
@@ -170,9 +171,9 @@ avg6mou decimal(9,3),
 avg6qty decimal(9,3),
 PRIMARY KEY(Customer_ID)
 );
-
 LOAD DATA LOCAL INFILE  
 'C:/Users/Jake/Documents/ryersoncapstone/Operations_info.csv'
 INTO TABLE Operations 
 FIELDS TERMINATED BY ',' 
+LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
