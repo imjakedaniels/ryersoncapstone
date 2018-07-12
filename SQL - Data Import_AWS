@@ -25,7 +25,7 @@ creditcd CHAR(1),
 PRIMARY KEY(Customer_ID)
 );
 LOAD DATA LOCAL INFILE  
-'C:/Users/Jake/Documents/ryersoncapstone/Billing_info.csv'
+'C:/Users/Jake/Documents/ryersoncapstone1/Billing_info.csv'
 INTO TABLE Billing 
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\n'
@@ -66,7 +66,7 @@ Customer_ID VARCHAR(10),
 PRIMARY KEY(Customer_ID)
 );
 LOAD DATA LOCAL INFILE  
-'C:/Users/Jake/Documents/ryersoncapstone/Customer_info.csv'
+'C:/Users/Jake/Documents/ryersoncapstone1/Customer_info.csv'
 INTO TABLE Customer 
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\n'
@@ -81,7 +81,7 @@ cc_mou_Mean decimal(9,3),
 PRIMARY KEY(Customer_ID)
 );
 LOAD DATA LOCAL INFILE  
-'C:/Users/Jake/Documents/ryersoncapstone/CustServ_info.csv'
+'C:/Users/Jake/Documents/ryersoncapstone1/CustServ_info.csv'
 INTO TABLE CustServ 
 FIELDS TERMINATED BY ',' 
 LINES TERMINATED BY '\n'
@@ -99,7 +99,7 @@ eqpdays int,
 PRIMARY KEY(Customer_ID)
 );
 LOAD DATA LOCAL INFILE  
-'C:/Users/Jake/Documents/ryersoncapstone/Product_info.csv'
+'C:/Users/Jake/Documents/ryersoncapstone1/Product_info.csv'
 INTO TABLE Product 
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\n' 
@@ -124,7 +124,7 @@ complete_Mean decimal(9,3),
 PRIMARY KEY(Customer_ID)
 );
 LOAD DATA LOCAL INFILE  
-'C:/Users/Jake/Documents/ryersoncapstone/Service_info.csv'
+'C:/Users/Jake/Documents/ryersoncapstone1/Service_info.csv'
 INTO TABLE Service 
 FIELDS TERMINATED BY ',' 
 LINES TERMINATED BY '\n'
@@ -172,7 +172,7 @@ avg6qty decimal(9,3),
 PRIMARY KEY(Customer_ID)
 );
 LOAD DATA LOCAL INFILE  
-'C:/Users/Jake/Documents/ryersoncapstone/Operations_info.csv'
+'C:/Users/Jake/Documents/ryersoncapstone1/Operations_info.csv'
 INTO TABLE Operations 
 FIELDS TERMINATED BY ',' 
 LINES TERMINATED BY '\n'
