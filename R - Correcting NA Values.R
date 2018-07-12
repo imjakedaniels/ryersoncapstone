@@ -1,4 +1,4 @@
-
+## @knitr part1
 tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
 
 Billing[which(is.na(tele$rev_Mean)),]$rev_Mean <- NA
@@ -7,26 +7,16 @@ Billing[which(is.na(tele$ovrrev_Mean)),]$ovrrev_Mean <- NA
 Billing[which(is.na(tele$vceovr_Mean)),]$vceovr_Mean <- NA
 Billing[which(is.na(tele$datovr_Mean)),]$datovr_Mean <- NA
 Billing[which(is.na(tele$change_rev)),]$change_rev <- NA
-Billing[which(is.na(tele$totrev)),]$totrev <- NA
-Billing[which(is.na(tele$adjrev)),]$adjrev <- NA
-Billing[which(is.na(tele$avgrev)),]$avgrev <- NA
-Billing[which(is.na(tele$avg3rev)),]$avg3rev <- NA
 Billing[which(is.na(tele$avg6rev)),]$avg6rev <- NA
 Billing[which(is.na(tele$creditcd)),]$creditcd <- NA
 
-Customer[which(is.na(tele$churn)),]$churn <- NA
-Customer[which(is.na(tele$months)),]$months <- NA
-Customer[which(is.na(tele$uniqsubs)),]$uniqsubs <- NA
-Customer[which(is.na(tele$actvsubs)),]$actvsubs <- NA
-Customer[which(is.na(tele$crdlscod)),]$crdlscod <- NA
-Customer[which(is.na(tele$asl_flag)),]$asl_flag <- NA
 Customer[which(is.na(tele$prizm_social_one)),]$prizm_social_one <- NA
 Customer[which(is.na(tele$area)),]$area <- NA
 Customer[which(is.na(tele$phones)),]$phones <- NA
 Customer[which(is.na(tele$models)),]$models <- NA
 Customer[which(is.na(tele$truck)),]$truck <- NA
 Customer[which(is.na(tele$rv)),]$rv <- NA
-Customer[which(is.na(tele$own_rent)),]$own_rent <- NA
+Customer[which(is.na(tele$ownrent)),]$own_rent <- NA
 Customer[which(is.na(tele$lor)),]$lor <- NA
 Customer[which(is.na(tele$dwlltype)),]$dwlltype <- NA
 Customer[which(is.na(tele$marital)),]$marital <- NA
@@ -34,7 +24,7 @@ Customer[which(is.na(tele$adults)),]$adults <- NA
 Customer[which(is.na(tele$infobase)),]$infobase <- NA
 Customer[which(is.na(tele$income)),]$income <- NA
 Customer[which(is.na(tele$numbcars)),]$numbcars <- NA
-Customer[which(is.na(tele$HHStatin)),]$HHStatin <- NA
+Customer[which(is.na(tele$HHstatin)),]$HHStatin <- NA
 Customer[which(is.na(tele$dwllsize)),]$dwllsize <- NA
 Customer[which(is.na(tele$forgntvl)),]$forgntvl <- NA
 Customer[which(is.na(tele$ethnic)),]$ethnic <- NA
@@ -49,55 +39,11 @@ Operations[which(is.na(tele$da_Mean)),]$da_Mean <- NA
 Operations[which(is.na(tele$ovrmou_Mean)),]$ovrmou_Mean <- NA
 Operations[which(is.na(tele$roam_Mean)),]$roam_Mean <- NA
 Operations[which(is.na(tele$change_mou)),]$change_mou <- NA
-Operations[which(is.na(tele$comp_vce_Mean)),]$comp_vce_Mean <- NA
-Operations[which(is.na(tele$comp_data_Mean)),]$comp_data_Mean <- NA
-Operations[which(is.na(tele$inonemin_Mean)),]$inonemin_Mean <- NA
-Operations[which(is.na(tele$threeway_Mean)),]$threeway_Mean <- NA
-Operations[which(is.na(tele$mou_compvce_Mean)),]$mou_compvce_Mean <- NA
-Operations[which(is.na(tele$mou_compdata_Mean)),]$mou_compdata_Mean <- NA
-Operations[which(is.na(tele$mou_rvce_Mean)),]$mou_rvce_Mean <- NA
-Operations[which(is.na(tele$owylis_vce_Mean)),]$owylis_vce_Mean <- NA
-Operations[which(is.na(tele$mou_owylisv_Mean)),]$mou_owylisv_Mean <- NA
-Operations[which(is.na(tele$iwylis_vce_Mean)),]$iwylis_vce_Mean <- NA
-Operations[which(is.na(tele$mou_iwylisv_Mean)),]$mou_iwylisv_Mean <- NA
-Operations[which(is.na(tele$peak_vce_Mean)),]$peak_vce_Mean <- NA
-Operations[which(is.na(tele$peak_data_Mean)),]$peak_data_Mean <- NA
-Operations[which(is.na(tele$mou_peak_vce_Mean)),]$mou_peak_vce_Mean <- NA
-Operations[which(is.na(tele$mou_peak_data_Mean)),]$mou_peak_data_Mean <- NA
-Operations[which(is.na(tele$opk_vce_Mean)),]$opk_vce_Mean <- NA
-Operations[which(is.na(tele$opk_data_Mean)),]$opk_data_Mean <- NA
-Operations[which(is.na(tele$mou_opk_vce_Mean)),]$mou_opk_vce_Mean <- NA
-Operations[which(is.na(tele$mou_opk_data_Mean)),]$mou_opk_data_Mean <- NA
-Operations[which(is.na(tele$callfwdv_Mean)),]$callfwdv_Mean <- NA
-Operations[which(is.na(tele$callwait_Mean)),]$callwait_Mean <- NA
-Operations[which(is.na(tele$totcalls)),]$totcalls <- NA
-Operations[which(is.na(tele$totmou)),]$totmou <- NA
-Operations[which(is.na(tele$adjmou)),]$adjmou <- NA
-Operations[which(is.na(tele$adjqty)),]$adjqty <- NA
-Operations[which(is.na(tele$avgmou)),]$avgmou <- NA
-Operations[which(is.na(tele$avgqty)),]$avgqty <- NA
-Operations[which(is.na(tele$avg3mou)),]$avg3mou <- NA
-Operations[which(is.na(tele$avg3qty)),]$avg3qty <- NA
 Operations[which(is.na(tele$avg6mou)),]$avg6mou <- NA
 Operations[which(is.na(tele$avg6qty)),]$avg6qty <- NA
 
-Product[which(is.na(tele$new_cell)),]$new_cell <- NA
 Product[which(is.na(tele$dualband)),]$dualband <- NA
 Product[which(is.na(tele$refurb_new)),]$refurb_new <- NA
 Product[which(is.na(tele$hnd_price)),]$hnd_price <- NA
 Product[which(is.na(tele$hnd_webcap)),]$hnd_webcap <- NA
 Product[which(is.na(tele$eqpdays)),]$eqpdays <- NA
-
-Service[which(is.na(tele$drop_vce_Mean)),]$drop_vce_Mean <- NA
-Service[which(is.na(tele$drop_data_Mean)),]$drop_data_Mean <- NA
-Service[which(is.na(tele$blck_vce_Mean)),]$blck_vce_Mean <- NA
-Service[which(is.na(tele$blck_data_Mean)),]$blck_data_Mean <- NA
-Service[which(is.na(tele$unan_vce_Mean)),]$unan_vce_Mean <- NA
-Service[which(is.na(tele$unan_data_Mean)),]$unan_data_Mean <- NA
-Service[which(is.na(tele$plcd_vcd_Mean)),]$plcd_vcd_Mean <- NA
-Service[which(is.na(tele$plcd_data_Mean)),]$plcd_data_Mean <- NA
-Service[which(is.na(tele$recv_vce_Mean)),]$recv_vce_Mean <- NA
-Service[which(is.na(tele$recv_sms_Mean)),]$recv_sms_Mean <- NA
-Service[which(is.na(tele$drop_blk_Mean)),]$drop_blk_Mean <- NA
-Service[which(is.na(tele$attempt_Mean)),]$attempt_Mean <- NA
-Service[which(is.na(tele$complete_Mean)),]$complete_Mean <- NA
