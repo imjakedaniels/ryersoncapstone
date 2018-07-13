@@ -4,6 +4,7 @@ author: "Jake Daniels"
 date: "July 9, 2018"
 output: html_document
 ---
+
 Cleaning & Visual Packages Required
 ```{r, echo=FALSE}
 #install.packages("tidyverse")
@@ -51,7 +52,7 @@ read_chunk('../ryersoncapstone1/R - Correcting NA Values.R')
 ```{r part1}
 read_chunk('../ryersoncapstone1/R - Correcting NA Values.R')
 ```
-Combining all to drop rows easier when cleaning
+Combining all tables to make dropping rows easier when cleaning
 ```{r}
 tele_clean <- inner_join(Billing, Customer) %>%
   inner_join(CustService) %>%
@@ -116,7 +117,7 @@ tele_clean[na_index,]$creditcd <- "N"
 tele_clean$creditcd <- ifelse(tele_clean$creditcd == "Y", 1, 0) %>% as.factor()
 ```
 
-Extreme Values
+ Extreme Values
 ```{r}
 # highlighting the extreme values then dropping them 
 plot(tele_clean$rev_Mean)
@@ -581,8 +582,23 @@ sapply(Service, function(x) round((sum(is.na(x))/length(x)*100),3))
 ```{r}
 summary(Service)
 ```
+Extreme values
+```{r}
+plot(tele_clean$drop_data_Mean)
+plot(tele_clean$blck_data_Mean)
+plot(tele_clean$recv_sms_Mean)
 
+outlier_index <- which(tele_clean$drop_data_Mean > 100)
+tele_clean <- tele_clean[-outlier_index,]
 
+outlier_index <- which(tele_clean$blck_data_Mean > 300)
+tele_clean <- tele_clean[-outlier_index,]
+
+outlier_index <- which(tele_clean$recv_sms_Mean > 200)
+tele_clean <- tele_clean[-outlier_index,]
+```
+
+All clean of NA
 ```{r}
 which(is.na(tele_clean))
 ```
@@ -1148,17 +1164,6 @@ tele_clean$kid11_15 <- ifelse(tele_clean$kid11_15 == "Y", 1, 0) %>% as.factor()
 tele_clean$kid16_17 <- ifelse(tele_clean$kid16_17 == "Y", 1, 0) %>% as.factor()
 ```
 
-Cleaning Check
-```{r}
-# no more NA?
-length(which(is.na(tele_clean)))
-```
-
-
-Renaming Columns for MySQL and Shiny
-```{r}
-names(tele_clean) <- c('Billing.rev_Mean', 'Usage.mou_Mean', 'Billing.totmrc_Mean', 'Usage.da_Mean', 'Usage.ovrmou_Mean', 'Billing.ovrrev_Mean','Billing.vceovr_Mean', 'Billing.datovr_Mean', 'Usage.roam_Mean', 'Usage.change_mou', 'Billing.change_rev', 'Service.drop_vce_Mean', 'Service.drop_data_Mean', 'Service.blck_vce_Mean', 'Service.blck_data_Mean', 'Service.unan_vce_Mean', 'Service.unan_data_Mean', 'Service.plcd_vcd_Mean', 'Service.plcd_data_Mean', 'Service.recv_vce_Mean', 'Service.recv_sms_Mean', 'Usage.comp_vce_Mean', 'Usage.comp_data_Mean', 'CustServ.custcare_Mean', 'CustServ.ccrndmou_Mean', 'CustServ.cc_mou_Mean', 'Usage.inonemin_Mean', 'Usage.threeway_Mean', 'Usage.mou_compvce_Mean', 'Usage.mou_compdata_Mean', 'Usage.mou_rvce_Mean', 'Usage.owylis_vce_Mean', 'Usage.mou_owylisv_Mean', 'Usage.iwylis_vce_Mean', 'Usage.mou_iwylisv_Mean', 'Usage.peak_vce_Mean', 'Usage.peak_data_Mean', 'Usage.mou_peak_vce_Mean', 'Usage.mou_peak_data_Mean', 'Usage.opk_vce_Mean', 'Usage.opk_data_Mean', 'Usage.mou_opk_vce_Mean', 'Usage.mou_opk_data_Mean', 'Service.drop_blk_Mean', 'Service.attempt_Mean', 'Service.complete_Mean', 'Usage.callfwdv_Mean', 'Usage.callwait_Mean', 'Customer.churn', 'Customer.months', 'Customer.uniqsubs', 'Customer.actvsubs', 'Product.new_cell', 'Customer.asl_flag', 'Usage.totcalls', 'Usage.totmou', 'Billing.totrev', 'Billing.adjrev', 'Usage.adjmou', 'Usage.adjqty', 'Billing.avgrev', 'Usage.avgmou', 'Usage.avgqty', 'Usage.avg3mou', 'Usage.avg3qty', 'Billing.avg3rev', 'Usage.avg6mou', 'Usage.avg6qty', 'Billing.avg6rev', 'Customer.prizm_social_one', 'Customer.area', 'Product.dualband', 'Product.refurb_new', 'Product.hnd_price', 'Customer.phones', 'Customer.models', 'Product.hnd_webcap', 'Customer.lor', 'Customer.dwlltype', 'Customer.marital', 'Customer.adults', 'Customer.income', 'Customer.numbcars', 'Customer.forgntvl', 'Customer.kid0_2', 'Customer.kid3_5', 'Customer.kid6-10', 'Customer.kid11_15', 'Customer.kid16_17', 'Billing.creditcd', 'Product.eqpdays', 'Customer.Customer_ID')
-```
 
 Correlations
 ```{r}
