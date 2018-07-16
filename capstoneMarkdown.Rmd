@@ -577,14 +577,38 @@ which(is.na(tele_clean))
 
 Correlations
 ```{r}
-# spearman because non-parametrics
+# pearson 
 nums <- unlist(lapply(tele_clean, is.numeric))  
-res <- cor(tele_clean[,nums], method = "spearman")
-res <- ifelse(res > 0, res^.5, -abs(res)^.5)
+Cl <- cor(tele_clean[,nums], method = "pearson")
+Cl <- ifelse(Cl > 0, Cl^.5, -abs(Cl)^.5)
+Cl <- as.data.frame(Cl)
+df1<- Cl %>%
+  select(churn) %>%
+  mutate(variable = names(Cl)) %>%
+  arrange(desc(churn))
 
+# spearman
+clS <- cor(tele_clean[,nums], method = "spearman")
+clS <- ifelse(clS > 0, clS^.5, -abs(clS)^.5)
+clS <- as.data.frame(clS)
+df2<-clS %>%
+  select(churn) %>%
+  mutate(variable = names(clS)) %>%
+  arrange(desc(churn))
+
+# looking at side by side
+biscuit <- merge(df1,df2, by = "variable")
+names(biscuit) <- c("variable", "pearson", "spearman")
+biscuit %>%
+  arrange(desc(spearman))
+
+# more positive indicators with spearman
+biscuit %>%
+  summarise(pearson.postives = length(which(pearson > 0)), spearman.positives = length(which(spearman > 0)))
+  
 #install.packages('corrplot')
 library(corrplot)
-corrplot(res, type = "upper", order = "hclust", tl.col = "black")
+corrplot(biscuit, type = "upper", order = "hclust", tl.col = "black")
 ```
 
 Export to Weka for Exploratory Analysis -- see Github
