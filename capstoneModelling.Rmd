@@ -1,0 +1,356 @@
+---
+title: "FeatureSelection"
+author: "Jake Daniels"
+date: "July 18, 2018"
+output: html_document
+---
+Pre-feature selection model performance
+
+Splitting Data
+```{r}
+set.seed(1)
+# splitting data
+tele_clean$Customer_ID <- NULL
+index_train <- sample(1:nrow(tele_clean), 2/3 * nrow(tele_clean))
+training_set <- tele_clean[index_train, ]
+test_set <- tele_clean[-index_train, ]
+```
+R - Logistic
+```{r}
+R_logistic_model <- glm(churn ~ ., family = "binomial", data = training_set)
+predictions_all_R <- predict(R_logistic_model, newdata = test_set, type = "response")
+# Make a binary predictions-vector using a cut-off of 50%
+pred_cutoff_50 <- ifelse(predictions_all_R > 0.5, 1, 0)
+
+# Construct a confusion matrix
+conf_matrix_50 <- table(test_set$churn, pred_cutoff_50)
+conf_matrix_50
+```
+Weka - Logistic
+```{r}
+# comparing models with full dataset
+weka_logistic_model <- Logistic(churn ~ ., data=training_set)
+summary(weka_logistic_model)
+
+predictions_all_Weka <- predict(weka_logistic_model, newdata = test_set, type = c("class", "probability"))
+pred_cutoff_501 <- ifelse(predictions_all_Weka > 0.5, 1, 0)
+
+conf_matrix_501 <- table(test_set$churn, pred_cutoff_501)
+conf_matrix_501
+```
+
+```{r}
+#compare accuracies
+
+
+
+summary(results)
+# compare accuracy of models
+dotplot(results)
+```
+
+Feature Selection
+Normalizing with Z-Scores and filtering low variance
+```{r}
+nums <- unlist(lapply(tele_clean, is.numeric)) 
+normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
+
+# zscore normalization
+normalized <- sapply(tele_clean[,nums], normFunc) %>% as.data.frame()
+
+# examing distributions for low variance (limited to absolute 3 to negate extreme values)
+melt(normalized[,1:12]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#datovr
+```
+
+```{r}
+melt(normalized[,25:36]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#roam_Mean
+#comp_data_Mean
+#mou_compdata_Mean
+```
+
+```{r}
+melt(normalized[,37:48]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#peak_data_Mean
+#mou_peak_data_Mean
+#opk_data_Mean
+#mou_opk_data_Mean
+#callfwdv_Mean
+```
+
+```{r}
+melt(normalized[,61:72]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#drop_data_Mean
+#blck_data_Mean
+#unan_data_Mean
+#plcd_data_Mean
+#recv_sms_Mean
+```
+Low Variance/SD Variables
+```{r}
+low_variance <- c("datovr_Mean", "roam_Mean", "comp_data_Mean", "mou_compdata_Mean", "peak_data_Mean", "mou_peak_data_Mean", "opk_data_Mean", "mou_opk_data_Mean", "callfwdv_Mean", "drop_data_Mean", "blck_data_Mean", "unan_data_Mean", "plcd_data_Mean", "recv_sms_Mean")
+```
+
+Correlation - Pearson vs Spearman
+```{r}
+# pearson 
+tele_clean$churn <- tele_clean$churn %>% as.numeric()
+nums <- unlist(lapply(tele_clean, is.numeric))  
+Cl <- cor(tele_clean[,nums], method = "pearson")
+Cl <- ifelse(Cl > 0, Cl^.5, -abs(Cl)^.5)
+Cl <- as.data.frame(Cl)
+df1<- Cl %>%
+  select(churn) %>%
+  mutate(variable = names(Cl)) %>%
+  arrange(desc(churn))
+
+# spearman
+ClS <- cor(tele_clean[,nums], method = "spearman")
+ClS <- ifelse(ClS > 0, ClS^.5, -abs(ClS)^.5)
+ClS <- as.data.frame(ClS)
+df2<-ClS %>% 
+  select(churn) %>%
+  mutate(variable = names(ClS)) %>%
+  arrange(desc(churn))
+
+# looking at side by side
+correlations <- merge(df1,df2, by = "variable")
+names(correlations) <- c("variable", "pearson", "spearman")
+correlations_ordered <- correlations %>%
+  mutate(variable = variable, pearson = abs(pearson), spearman = abs(spearman)) %>%
+  filter(variable != "churn") %>%
+  arrange(desc(spearman))
+correlations_ordered
+
+```
+```{r}
+model_name <- paste("R - method: pearson/spearman")
+subtitle <- paste("Top 15 Variables Ranked on Correlation to Churn")
+
+mplot_correlations <- function(var, imp, colours = NA, limit = 15, model_name = NA, subtitle = NA,
+                             save = FALSE, file_name = "viz_correlation.png", subdir = NA) {
+  
+  require(ggplot2)
+  require(gridExtra)
+  options(warn=-1)
+  
+  if (length(var) != length(imp)) {
+    message("The variables and importance values vectors should be the same length.")
+    stop(message(paste("Currently, there are",length(var),"variables and",length(imp),"importance values!")))
+  }
+  if (is.na(colours)) {
+    colours <- "deepskyblue" 
+  }
+  out <- data.frame(var = var, imp = imp, Type = colours)
+  if (length(var) < limit) {
+    limit <- length(var)
+  }
+  
+  output <- out[1:limit,]
+  
+  p <- ggplot(output, 
+              aes(x = reorder(var, imp), y = imp * 1, 
+                  label = round(1 * imp, 1))) + 
+    geom_col(aes(fill = Type), width = 0.1) +
+    geom_point(aes(colour = Type), size = 6) + 
+    coord_flip() + xlab('') + theme_minimal() +
+    ylab('Absolute Correlation') + 
+    geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white") +
+    labs(title = paste0("Variables Importances. (", limit, " / ", length(var), " plotted)"))
+  
+  if (length(unique(output$Type)) == 1) {
+    p <- p + geom_col(fill = colours, width = 0.2) +
+      geom_point(colour = colours, size = 6) + 
+      guides(fill = FALSE, colour = FALSE) + 
+      geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white")
+  }
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  }  
+  if(save == TRUE) {
+    if (!is.na(subdir)) {
+      dir.create(file.path(getwd(), subdir))
+      file_name <- paste(subdir, file_name, sep="/")
+    }
+    p <- p + ggsave(file_name, width=7, height=6)
+  }
+  
+  return(p)
+  
+}
+
+mplot_correlations(correlations_ordered$variable,correlations_ordered$pearson, model_name=model_name, subtitle=subtitle)
+mplot_correlations(correlations_ordered$variable,correlations_ordered$spearman, model_name=model_name, subtitle=subtitle)
+```
+
+Low correlation variables
+```{r}
+# isolating low correlation varibles
+low_correlation <- which(abs(correlations[,2:3]) < 0.1)
+correlations[low_correlation,]
+
+#pearson producing lower correlations to churn
+low_correlation2 <- which(abs(correlations$pearson) < 0.1 & abs(correlations$spearman) < 0.1)
+correlations[low_correlation2,]
+```
+
+```{r}
+#install.packages("RWeka")
+library(RWeka)
+write.arff(tele_clean, file = "capstone.arff")
+```
+
+Weka - InfoGain
+```{r}
+# infogain top attributes
+tele_clean$churn <- tele_clean$churn %>% as.factor()
+wekainfo <- InfoGainAttributeEval(churn ~ . , data = tele_clean)
+
+infogain <- as.data.frame(wekainfo) %>%
+  mutate(variable = names(tele_clean[,-13]), wekainfo = wekainfo) %>%
+  arrange(desc(wekainfo))
+
+mplot_importance <- function(var, imp, colours = NA, limit = 15, model_name = NA, subtitle = NA,
+                             save = FALSE, file_name = "viz_importance.png", subdir = NA) {
+  
+  require(ggplot2)
+  require(gridExtra)
+  options(warn=-1)
+  
+  if (length(var) != length(imp)) {
+    message("The variables and importance values vectors should be the same length.")
+    stop(message(paste("Currently, there are",length(var),"variables and",length(imp),"importance values!")))
+  }
+  if (is.na(colours)) {
+    colours <- "deepskyblue" 
+  }
+  out <- data.frame(var = var, imp = imp, Type = colours)
+  if (length(var) < limit) {
+    limit <- length(var)
+  }
+  
+  output <- out[1:limit,]
+  
+  p <- ggplot(output, 
+              aes(x = reorder(var, imp), y = imp * 100, 
+                  label = round(100 * imp, 1))) + 
+    geom_col(aes(fill = Type), width = 0.1) +
+    geom_point(aes(colour = Type), size = 6) + 
+    coord_flip() + xlab('') + theme_minimal() +
+    ylab('Importance') + 
+    geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white") +
+    labs(title = paste0("Variables Importances. (", limit, " / ", length(var), " plotted)"))
+  
+  if (length(unique(output$Type)) == 1) {
+    p <- p + geom_col(fill = colours, width = 0.2) +
+      geom_point(colour = colours, size = 6) + 
+      guides(fill = FALSE, colour = FALSE) + 
+      geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white")
+  }
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  }  
+  if(save == TRUE) {
+    if (!is.na(subdir)) {
+      dir.create(file.path(getwd(), subdir))
+      file_name <- paste(subdir, file_name, sep="/")
+    }
+    p <- p + ggsave(file_name, width=7, height=6)
+  }
+  
+  return(p)
+  
+}
+
+model_name <- paste("Weka - InfoGainAttributeEval")
+subtitle <- paste("Top 15 Variables Ranked on Importance")
+
+mplot_importance(infogain$variable,infogain$wekainfo, model_name=model_name, subtitle=subtitle)
+```
+
+```{r}
+# i will keep all variables > 0.1 gain
+final_vars <- as.data.frame(wekainfo) %>%
+  mutate(variable = names(tele_clean[,-13]), wekainfo = wekainfo*100) %>%
+  filter(wekainfo >0.1) %>%
+  arrange(desc(wekainfo)) %>%
+  select(variable)
+
+low_variance 
+final_vars
+```
+
+Feature Selection Models
+```{r}
+# using our chosen variables
+model_tele_clean <- tele_clean[,c(unlist(final_vars), "churn")]
+
+set.seed(2)
+# splitting data
+index_train <- sample(1:nrow(model_tele_clean), 2/3 * nrow(model_tele_clean))
+final_training_set <- model_tele_clean[index_train, ]
+final_test_set <- model_tele_clean[-index_train, ]
+```
+R - Logistic
+```{r}
+R_logistic_model <- glm(churn ~ ., family = "binomial", data = final_training_set)
+predictions_all_R <- predict(R_logistic_model, newdata = final_test_set, type = "response")
+# Make a binary predictions-vector using a cut-off of 50%
+pred_cutoff_50 <- ifelse(predictions_all_R > 0.5, 1, 0)
+
+# Construct a confusion matrix
+conf_matrix_50 <- table(final_test_set$churn, pred_cutoff_50)
+conf_matrix_50
+
+#increased my False Negative but lowered my True Positive.
+```
+Weka - Logistic
+```{r}
+# comparing models with full dataset
+weka_logistic_model <- Logistic(churn ~ ., data=final_training_set)
+summary(weka_logistic_model)
+
+predictions_all_Weka <- predict(weka_logistic_model, newdata = final_test_set, type = c("class", "probability"))
+pred_cutoff_501 <- ifelse(predictions_all_Weka > 0.5, 1, 0)
+
+conf_matrix_501 <- table(final_test_set$churn, pred_cutoff_501)
+conf_matrix_501
+```
+Weka - logitBoost
+```{r}
+Weka_boost_model <- LogitBoost(churn ~ ., data=final_training_set)
+summary(Weka_boost_model)
+
+predictions_all_boost <- predict(Weka_boost_model, newdata = final_test_set, type = c("class", "probability"))
+pred_cutoff_502 <- ifelse(predictions_all_boost > 0.5, 1, 0)
+
+conf_matrix_502 <- table(final_test_set$churn, pred_cutoff_502)
+conf_matrix_502
+```
