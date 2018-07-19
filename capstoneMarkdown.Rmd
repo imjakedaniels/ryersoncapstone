@@ -53,7 +53,7 @@ read_chunk('../ryersoncapstone1/R - Correcting NA Values.R')
 ```{r part1}
 read_chunk('../ryersoncapstone1/R - Correcting NA Values.R')
 ```
-Combining all tables to make dropping rows easier when cleaning
+Combining all tables to make dropping rows consistent when cleaning
 ```{r}
 tele_clean <- inner_join(Billing, Customer) %>%
   inner_join(CustService) %>%
@@ -66,7 +66,7 @@ tele_clean <- inner_join(Billing, Customer) %>%
 ```
 
 
-CLEANING NA/OUTLIER for Models
+Univariate Cleaning NA/OUTLIER for Models
 
 Billing
 
@@ -129,16 +129,16 @@ plot(tele_clean$rev_Mean)
 plot(tele_clean$datovr_Mean)
 plot(tele_clean$change_rev)
 
-outlier_index <- which(tele_clean$rev_Mean > 3000)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$rev_Mean > 3000)
+#tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$datovr_Mean > 200)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$datovr_Mean > 200)
+#tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$change_rev > 2000)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$change_rev > 2000)
+#tele_clean <- tele_clean[-outlier_index,]
 ```
-Customer (numerics)
+Customer
 
 Class Types and Structure
 ```{r}
@@ -160,80 +160,10 @@ melt(Customer) %>%
 ```{r}
 summary(tele_clean[,14:42])
 ```
-phones/models
+churn
 ```{r}
-# only one NA, same customer - dropping
-which(is.na(tele_clean$phones)) == which(is.na(tele_clean$models))
-  na_index <- which(is.na(tele_clean$phones))
-  tele_clean <- tele_clean[-na_index,]
-```
-truck/rv
-```{r}
-# same customerinformation missing, assume they do not have - assigning 0
-sum(which(is.na(tele_clean$truck))) == sum(which(is.na(tele_clean$rv)))
-  tele_clean[which(is.na(tele_clean$truck)),]$truck <- 0 
-  tele_clean$truck<- tele_clean$truck %>% as.factor()
-  
-  tele_clean[which(is.na(tele_clean$rv)),]$rv <- 0 
-  tele_clean$rv <- tele_clean$rv %>% as.factor()
-```
-lor (length of residence in years)
-```{r}
-# assigning the median
-  na_index <- which(is.na(tele_clean$lor))
-  tele_clean[na_index,]$lor <- median(tele_clean$lor, na.rm = T)
-```
-adults
-```{r}
-# keep the na by convert column to factors - anyone with 3-6 adults are combined into one
-tele_clean$adults <- cut(tele_clean$adults, c(0,1,2,6), labels = c("One", "Two","Three+"))
-  levels(tele_clean$adults) <- c(levels(tele_clean$adults), "UNKWN")
-  na_index <- which(is.na(tele_clean$adults))
-  tele_clean[na_index,]$adults <- "UNKWN"
-tele_clean$adults <- as.factor(tele_clean$adults)
-```
-income (estimated)
-```{r}
-# convert to Low (1-3), Medium(4-6), High(7-9) - putting NA into Medium(avg)
-tele_clean$income <- cut(tele_clean$income, c(0,3,6,9), labels = c("Low", "Medium","High"))
-  na_index <- which(is.na(tele_clean$income))
-  tele_clean[na_index,]$income <- "Medium"
-tele_clean$income <- as.factor(tele_clean$income)
-```
-numbcars
-```{r}
-#  NAs: 48854, half data is missing, NA likely means 0 cars, column is poorly kept so I am dropping it.
-tele_clean$numbcars <- NULL
-```
-forgntvl
-```{r}
-# let's assume if we dont know forgntvl it is 0 since a majority is 0 already
-na_index <- which(is.na(tele_clean$forgntvl))
-tele_clean[na_index,]$forgntvl <- 0
-tele_clean$forgntvl<- as.factor(tele_clean$forgntvl)
-```
-
-Extreme Values
-```{r}
-# highlighting the extreme values then dropping them 
-plot(tele_clean$uniqsubs)
-plot(tele_clean$actvsubs)
-
-outlier_index <- which(tele_clean$uniqsubs > 100)
-tele_clean <- tele_clean[-outlier_index,]
-```
-
-Customer (Categoricals) 
-
-crdlscod
-```{r}
-tele_clean %>%
-ggplot() +
-geom_bar(aes(x=crdlscod)) +
-  theme_bw()
-
-# dropping full column because it has 30+ unique values and is useless for models/reports without any translation
-tele_clean$crdlscod <- NULL
+# making into a nominal value, opting for logical so it is easier to understand if customer left (TRUE) or not (FALSE)
+tele_clean$churn <- tele_clean$churn %>% as.factor()
 ```
 asl_flag
 ```{r}
@@ -269,10 +199,35 @@ ggplot() +
 geom_bar(aes(x=tele_clean$area)) +
   theme_bw()  
 
-# keeping for demographics
-na_index <- which(is.na(tele_clean$area))
-tele_clean <- tele_clean[-na_index,]
-tele_clean$area <- as.factor(tele_clean$area)
+# good for subsetting reports but not for the model, dropping this column
+tele_clean$area <- NULL
+```
+phones/models
+```{r}
+# only one NA, same customer - dropping
+which(is.na(tele_clean$phones)) == which(is.na(tele_clean$models))
+  na_index <- which(is.na(tele_clean$phones))
+  tele_clean <- tele_clean[-na_index,]
+```
+crdlscod
+```{r}
+tele_clean %>%
+ggplot() +
+geom_bar(aes(x=crdlscod)) +
+  theme_bw()
+
+# dropping full column because it has 30+ unique values and is useless for models/reports without any translation
+tele_clean$crdlscod <- NULL
+```
+truck/rv
+```{r}
+# same customerinformation missing in both columns, assume they do not have - assigning 0 and factoring into Y/N
+sum(which(is.na(tele_clean$truck))) == sum(which(is.na(tele_clean$rv)))
+  tele_clean[which(is.na(tele_clean$truck)),]$truck <- 0 
+  tele_clean$truck<- tele_clean$truck %>% as.factor()
+  
+  tele_clean[which(is.na(tele_clean$rv)),]$rv <- 0 
+  tele_clean$rv <- tele_clean$rv %>% as.factor()
 ```
 own_rent
 ```{r}
@@ -283,6 +238,21 @@ geom_bar(aes(x=tele_clean$own_rent)) +
 
 # provides little insight and 1/3rd missing
 tele_clean$own_rent <- NULL
+```
+lor (length of residence in years)
+```{r}
+# assigning the median - KNN would be great here
+  na_index <- which(is.na(tele_clean$lor))
+  tele_clean[na_index,]$lor <- median(tele_clean$lor, na.rm = T)
+```
+adults
+```{r}
+# keep the na by binning the data - anyone with 3-6 adults are combined into one
+tele_clean$adults <- cut(tele_clean$adults, c(0,1,2,6), labels = c("One", "Two","Three+"))
+  levels(tele_clean$adults) <- c(levels(tele_clean$adults), "UNKWN")
+  na_index <- which(is.na(tele_clean$adults))
+  tele_clean[na_index,]$adults <- "UNKWN"
+tele_clean$adults <- as.factor(tele_clean$adults)
 ```
 dwlltype
 ```{r}
@@ -318,6 +288,19 @@ geom_bar(aes(x=tele_clean$infobase)) +
 # two resutls: one option only has 221 inputs the rest are NA values - dropping the variable
 tele_clean$infobase <- NULL
 ```
+income (estimated)
+```{r}
+# convert to Low (1-3), Medium(4-6), High(7-9) - putting NA into Medium(avg)
+tele_clean$income <- cut(tele_clean$income, c(0,3,6,9), labels = c("Low", "Medium","High"))
+  na_index <- which(is.na(tele_clean$income))
+  tele_clean[na_index,]$income <- "Medium"
+tele_clean$income <- as.factor(tele_clean$income)
+```
+numbcars
+```{r}
+#  NAs: 48854, half data is missing, NA likely means 0 cars, column is poorly kept so I am dropping it.
+tele_clean$numbcars <- NULL
+```
 HHStatin
 ```{r}
 tele_clean %>%
@@ -346,13 +329,10 @@ tele_clean %>%
 ggplot() +
 geom_bar(aes(x=tele_clean$forgntvl)) +
   theme_bw()
-
 # let's assume if we dont know forgntvl it is 0 since a majority is 0 already
-#na_index <- which(is.na(tele_clean$forgntvl))
-#tele_clean[na_index,]$forgntvl <- 0
-#tele_clean$forgntvl<- as.factor(tele_clean$forgntvl
-
-# already cleaned                                
+na_index <- which(is.na(tele_clean$forgntvl))
+tele_clean[na_index,]$forgntvl <- 0
+tele_clean$forgntvl<- as.factor(tele_clean$forgntvl)
 ```
 ethnic (Ethnicity roll-up code)
 ```{r}
@@ -361,9 +341,16 @@ ggplot() +
 geom_bar(aes(x=ethnic)) +
   theme_bw()
 
-# could be valuable for demographics
+# combining all samller options into Other
 na_index <- which(is.na(tele_clean$ethnic))
-tele_clean[na_index,]$ethnic <- "UNKWN"
+tele_clean[na_index,]$ethnic <- "Other"
+
+tele_clean[which(tele_clean$ethnic != "G" & 
+        tele_clean$ethnic != "H" & 
+        tele_clean$ethnic != "N" & 
+        tele_clean$ethnic != "S" & 
+        tele_clean$ethnic != "U"),]$ethnic <- "Other"
+
 tele_clean$ethnic <- as.factor(tele_clean$ethnic)
 ```
 kids 0 -17
@@ -373,11 +360,9 @@ ggplot() +
 geom_bar(aes(x=tele_clean$kid0_2)) +
   theme_bw()
 
-#  U is unknown, Y is Yes so setting all to unknown
+#  U is unknown, Y is Yes so setting all to unknown then converting into factor
 na_index <- which(is.na(tele_clean$kid0_2))
-
-tele_clean[na_index,33:37] <- "U"
-
+tele_clean[na_index,c("kid0_2", "kid3_5", "kid6_10", "kid11_15", "kid16_17" )] <- "U"
 # making into factor
 tele_clean$kid0_2 <- ifelse(tele_clean$kid0_2 == "Y", 1, 0) %>% as.factor()
 tele_clean$kid3_5 <- ifelse(tele_clean$kid3_5 == "Y", 1, 0) %>% as.factor()
@@ -385,7 +370,15 @@ tele_clean$kid6_10 <- ifelse(tele_clean$kid6_10 == "Y", 1, 0) %>% as.factor()
 tele_clean$kid11_15 <- ifelse(tele_clean$kid11_15 == "Y", 1, 0) %>% as.factor()
 tele_clean$kid16_17 <- ifelse(tele_clean$kid16_17 == "Y", 1, 0) %>% as.factor()
 ```
+Extreme Values
+```{r}
+# highlighting the extreme values then dropping them 
+plot(tele_clean$uniqsubs)
+plot(tele_clean$actvsubs)
 
+#outlier_index <- which(tele_clean$uniqsubs > 100)
+#tele_clean <- tele_clean[-outlier_index,]
+```
 CustService
 
 Class Types and Structure
@@ -406,7 +399,7 @@ melt(CustService) %>%
 ```
 
 ```{r}
-summary(tele_clean[,39:41])
+summary(tele_clean[,38:40])
 ```
 
 ```{r}
@@ -415,14 +408,14 @@ plot(tele_clean$custcare_Mean)
 plot(tele_clean$ccrndmou_Mean)
 plot(tele_clean$cc_mou_Mean)
 
-outlier_index <- which(tele_clean$custcare_Mean >300)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$custcare_Mean >300)
+#tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$ccrndmou_Mean > 400)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$ccrndmou_Mean > 400)
+#tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$cc_mou_Mean > 300)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$cc_mou_Mean > 300)
+#tele_clean <- tele_clean[-outlier_index,]
 ```
 
 Operations 
@@ -435,7 +428,7 @@ glimpse(Operations)
 ```{r}
 sapply(Operations, function(x) round((sum(is.na(x))/length(x)*100),3))
 ```
-Visualizing
+Visualizing part 1
 ```{r}
 melt(Operations[,2:17]) %>%
   ggplot(aes(x = value)) + 
@@ -443,6 +436,7 @@ melt(Operations[,2:17]) %>%
   facet_wrap(~variable, scales = "free") +
   theme_bw()
 ```
+Visualizing part 2
 ```{r}
 melt(Operations[,18:37]) %>%
   ggplot(aes(x = value)) + 
@@ -456,7 +450,7 @@ summary(tele_clean[,41:76])
 ```
 avg6mou and avg6qty
 ```{r}
-# we should have this data, opting to put median value in to keep customers to avoid extreme value's impact on mean
+# we should have this data, opting to put median value in to keep customers to avoid extreme value's impact via mean
 na_index <- which(is.na(tele_clean$avg6mou))
 tele_clean[na_index,]$avg6mou <- median(tele_clean$avg6mou, na.rm = T)
 
@@ -469,11 +463,11 @@ Extreme Values
 plot(tele_clean$da_Mean)
 plot(tele_clean$mou_peak_data_Mean)
 
-outlier_index <- which(tele_clean$da_Mean > 100)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$da_Mean > 100)
+#tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$mou_peak_data_Mean > 600)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$mou_peak_data_Mean > 600)
+#tele_clean <- tele_clean[-outlier_index,]
 ```
 
 
@@ -535,6 +529,7 @@ geom_bar(aes(x=tele_clean$hnd_webcap)) +
 
 # already a unwk column, moving NA to it
 tele_clean[which(is.na(tele_clean$hnd_webcap)),]$hnd_webcap <- "UNKW"
+tele_clean$hnd_webcap <- tele_clean$hnd_webcap %>% as.factor()
 ```
 
 
@@ -558,64 +553,23 @@ plot(tele_clean$drop_data_Mean)
 plot(tele_clean$blck_data_Mean)
 plot(tele_clean$recv_sms_Mean)
 
-outlier_index <- which(tele_clean$drop_data_Mean > 100)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$drop_data_Mean > 100)
+#tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$blck_data_Mean > 300)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$blck_data_Mean > 300)
+#tele_clean <- tele_clean[-outlier_index,]
 
-outlier_index <- which(tele_clean$recv_sms_Mean > 200)
-tele_clean <- tele_clean[-outlier_index,]
+#outlier_index <- which(tele_clean$recv_sms_Mean > 200)
+#tele_clean <- tele_clean[-outlier_index,]
 ```
 
 All clean of NA
 ```{r}
 which(is.na(tele_clean))
 ```
-
-#######################
-
-Correlations
+Exporting for modelling.
 ```{r}
-# pearson 
-nums <- unlist(lapply(tele_clean, is.numeric))  
-Cl <- cor(tele_clean[,nums], method = "pearson")
-Cl <- ifelse(Cl > 0, Cl^.5, -abs(Cl)^.5)
-Cl <- as.data.frame(Cl)
-df1<- Cl %>%
-  select(churn) %>%
-  mutate(variable = names(Cl)) %>%
-  arrange(desc(churn))
-
-# spearman
-clS <- cor(tele_clean[,nums], method = "spearman")
-clS <- ifelse(clS > 0, clS^.5, -abs(clS)^.5)
-clS <- as.data.frame(clS)
-df2<-clS %>%
-  select(churn) %>%
-  mutate(variable = names(clS)) %>%
-  arrange(desc(churn))
-
-# looking at side by side
-biscuit <- merge(df1,df2, by = "variable")
-names(biscuit) <- c("variable", "pearson", "spearman")
-biscuit %>%
-  arrange(desc(spearman))
-
-# more positive indicators with spearman
-biscuit %>%
-  summarise(pearson.postives = length(which(pearson > 0)), spearman.positives = length(which(spearman > 0)))
-  
-#install.packages('corrplot')
-library(corrplot)
-corrplot(biscuit, type = "upper", order = "hclust", tl.col = "black")
-```
-
-Export to Weka for Exploratory Analysis -- see Github
-```{r}
-#install.packages("RWeka")
-library(RWeka)
-write.arff(tele_clean, file = "capstone.arff")
+write_csv(tele_clean, "tele_clean.csv")
 ```
 
 Tweaking values for model_tele_clean
