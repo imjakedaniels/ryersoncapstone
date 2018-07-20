@@ -8,6 +8,16 @@ Pre-feature selection model performance
 
 Splitting Data
 ```{r}
+#install.packages("caret")
+#install.packages("pROC")
+#install.packages("e1071")
+library(caret)
+library(lattice)
+library(pROC)
+library(e1071)
+```
+
+```{r]}
 set.seed(1)
 # splitting data
 tele_clean$Customer_ID <- NULL
@@ -296,9 +306,9 @@ mplot_importance(infogain$variable,infogain$wekainfo, model_name=model_name, sub
 ```
 
 ```{r}
-# my correlation vs caret
+# correlations
 temp<- preProcess(x=last, method = c("corr"))
-list(temp$method$remove, correlations[low_correlation,1])
+temp$method$remove
 
 # my variance vs caret
 temp2<- preProcess(x=last, method = c("nzv"))
@@ -441,6 +451,126 @@ conf_matrix_502
 ```{r}
 mplot_roc(final_test_set$churn, predictions_all_boost[,2])
 ```
+```{r}
+mplot_density <- function(tag, score, model_name = NA, subtitle = NA, 
+                          save = FALSE, file_name = "viz_distribution.png") {
+  require(ggplot2)
+  require(gridExtra)
+
+  if (length(tag) != length(score)) {
+    message("The tag and score vectors should be the same length.")
+    stop(message(paste("Currently, tag has",length(tag),"rows and score has",length(score))))
+  }
+
+  if (length(unique(tag)) != 2) {
+    stop("This function is for binary models. You should only have 2 unique values for the tag value!")
+  }
+  normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
+  out <- data.frame(tag = as.character(tag),
+                    score = as.numeric(score),
+                    norm_score = normFunc(as.numeric(score)))
+  
+  p1 <- ggplot(out) + theme_minimal() +
+    geom_density(aes(x = 100 * score, group = tag, fill = as.character(tag)), 
+                 alpha = 0.6, adjust = 0.25) + 
+    guides(fill = guide_legend(title="Tag")) + 
+    xlim(0, 100) + 
+    labs(title = "Score distribution for binary model",
+         y = "Density by tag", x = "Score")
+return(p1)
+}
+mplot_density(final_test_set$churn, predictions_all_R)
+```
+
+```{r}
+mplot_cuts <- function(score, splits = 10, subtitle = NA, model_name = NA, 
+                       save = FALSE, file_name = "viz_ncuts.png") {
+  
+  require(ggplot2)
+  
+  if (splits > 25) {
+    stop("You should try with less splits!")
+  }
+  
+  deciles <- quantile(score, 
+                      probs = seq((1/splits), 1, length = splits), 
+                      names = TRUE)
+  deciles <- data.frame(cbind(Deciles=row.names(as.data.frame(deciles)),
+                              Threshold=as.data.frame(deciles)))
+  
+  p <- ggplot(deciles, 
+              aes(x = reorder(Deciles, deciles), y = deciles * 100, 
+                  label = round(100 * deciles, 1))) + 
+    geom_col(fill="deepskyblue") + 
+    xlab('') + theme_minimal() + ylab('Score') + 
+    geom_text(vjust = 1.5, size = 3, inherit.aes = TRUE, colour = "white", check_overlap = TRUE) +
+    labs(title = paste("Cuts by score: using", splits, "equal-sized buckets"))
+  
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  } 
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+  if (save == TRUE) {
+    p <- p + ggsave(file_name, width = 6, height = 6)
+  }
+  return(p)
+}
+
+mplot_cuts(predictions_all_R)
+```
+
+
+```{r}
+
+deciles <- quantile(predictions_all_R, 
+                      probs = seq((1/10), 1, length = 10), 
+                      names = TRUE)
+deciles <- data.frame(cbind(Deciles=row.names(as.data.frame(deciles)),
+                              Threshold=as.data.frame(deciles)))
+  
+p <- ggplot(deciles, 
+              aes(x = reorder(Deciles, deciles), y = deciles * 100, 
+                  label = round(100 * deciles, 1))) + 
+    geom_col(fill="deepskyblue") + 
+    xlab('') + theme_minimal() + ylab('Score') + 
+    geom_text(vjust = 1.5, size = 3, inherit.aes = TRUE, colour = "white", check_overlap = TRUE) +
+    labs(title = paste("Cuts by score: using", 10, "equal-sized buckets"))
+
+  
+require(ggplot2)
+require(dplyr)
+require(RColorBrewer)
+
+  df <- data.frame(final_test_set$churn, predictions_all_R)
+  npersplit <- round(nrow(df)/5)
+  names <- df %>%
+    mutate(quantile = ntile(predictions_all_R, 5)) %>% group_by(quantile) %>%
+    summarise(n = n(), 
+              max_score = round(100 * max(predictions_all_R), 1), 
+              min_score = round(100 * min(predictions_all_R), 1)) %>%
+    mutate(quantile_tag = paste0(quantile," (",min_score,"-",max_score,")"))
+  
+  df %>%
+    mutate(quantile = ntile(predictions_all_R, 5)) %>% 
+    group_by(quantile, final_test_set.churn) %>% tally() %>%
+    ungroup() %>% group_by(final_test_set.churn) %>% 
+    arrange(desc(quantile)) %>%
+    mutate(p = round(100*n/sum(n),2),
+           cum = cumsum(100*n/sum(n))) %>%
+    left_join(names, by = c("quantile")) %>%
+    ggplot(aes(x = as.character(final_test_set.churn), y = p, label = as.character(p),
+               fill = as.character(quantile_tag))) + theme_minimal() +
+    geom_col(position = "stack") +
+    geom_text(size = 3, position = position_stack(vjust = 0.5), check_overlap = TRUE) +
+    xlab("Tag") + ylab("Total Percentage by Tag") +
+    guides(fill = guide_legend(title=paste0("~",npersplit," p/split"))) +
+    labs(title = "Tag vs Score Splits Comparison") +
+    scale_fill_brewer(palette = "Spectral")
+
+```
+
 
 Loading Model (old)
 ```{r}
@@ -542,5 +672,3 @@ accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
 rownames(accAll) <- c()
 arrange(accAll,desc(Accuracy))
 ```
-
-
