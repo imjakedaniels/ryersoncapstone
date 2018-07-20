@@ -296,6 +296,29 @@ mplot_importance(infogain$variable,infogain$wekainfo, model_name=model_name, sub
 ```
 
 ```{r}
+# my correlation vs caret
+temp<- preProcess(x=last, method = c("corr"))
+list(temp$method$remove, correlations[low_correlation,1])
+
+# my variance vs caret
+temp2<- preProcess(x=last, method = c("nzv"))
+list(temp2$method$remove, low_variance)
+
+removed <- temp$method$remove
+cor(tele_clean[,removed])
+
+
+extra_set[,removed] <- NULL
+extra_wekainfo <- InfoGainAttributeEval(churn ~ . , data = extra_set)
+
+extra_infogain <- as.data.frame(extra_wekainfo) %>%
+  mutate(variable = names(extra_set[,-10]), extra_wekainfo = extra_wekainfo) %>%
+  arrange(desc(extra_wekainfo))
+
+mplot_importance(extra_infogain$variable,extra_infogain$extra_wekainfo, model_name=model_name, subtitle=subtitle)
+
+
+
 # i will keep all variables > 0.1 gain
 final_vars <- as.data.frame(wekainfo) %>%
   mutate(variable = names(tele_clean[,-13]), wekainfo = wekainfo*100) %>%
@@ -317,40 +340,207 @@ set.seed(2)
 index_train <- sample(1:nrow(model_tele_clean), 2/3 * nrow(model_tele_clean))
 final_training_set <- model_tele_clean[index_train, ]
 final_test_set <- model_tele_clean[-index_train, ]
+
+# posting our ROC function
+mplot_roc <- function(tag, score, model_name = NA, subtitle = NA, interval = 0.2, plotly = FALSE,
+save = FALSE, file_name = "viz_roc.png") {
+  require(pROC)
+  require(ggplot2)
+
+  if (length(tag) != length(score)) {
+    message("The tag and score vectors should be the same length.")
+    stop(message(paste("Currently, tag has",length(tag),"rows and score has",length(score))))
+  }
+
+  roc <- pROC::roc(tag, score, ci=T)
+  coords <- data.frame(
+    x = rev(roc$specificities),
+    y = rev(roc$sensitivities))
+  ci <- data.frame(roc$ci, row.names = c("min","AUC","max"))
+
+  p <- ggplot(coords, aes(x = x, y = y)) +
+    geom_line(colour = "deepskyblue", size = 1) +
+    geom_point(colour = "blue3", size = 0.9, alpha = 0.4) +
+    geom_segment(aes(x = 0, y = 1, xend = 1, yend = 0), alpha = 0.2, linetype = "dotted") + 
+    scale_x_reverse(name = "% Specificity [False Positive Rate]", limits = c(1,0), 
+                    breaks = seq(0, 1, interval), expand = c(0.001,0.001)) + 
+    scale_y_continuous(name = "% Sensitivity [True Positive Rate]", limits = c(0,1), 
+                       breaks = seq(0, 1, interval), expand = c(0.001, 0.001)) +
+    theme_minimal() + 
+    theme(axis.ticks = element_line(color = "grey80")) +
+    coord_equal() + 
+    ggtitle("ROC Curve: AUC") +
+    annotate("text", x = 0.25, y = 0.10, vjust = 0, size = 4.2, 
+             label = paste("AUC =", round(100*ci[c("AUC"),],2))) +
+    annotate("text", x = 0.25, y = 0.05, vjust = 0, size = 2.8, 
+             label = paste0("95% CI: ", 
+                            round(100*ci[c("min"),],2),"-", 
+                            round(100*ci[c("max"),],2)))
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  }  
+
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+
+  if (plotly == TRUE) {
+    require(plotly)
+    p <- ggplotly(p)
+  }
+
+  if (save == TRUE) {
+    p <- p + ggsave(file_name, width = 6, height = 6)
+  }
+  return(p)
+}
 ```
 R - Logistic
 ```{r}
+set.seed(2)
 R_logistic_model <- glm(churn ~ ., family = "binomial", data = final_training_set)
-predictions_all_R <- predict(R_logistic_model, newdata = final_test_set, type = "response")
+  predictions_all_R <- predict(R_logistic_model, newdata = final_test_set, type = "response")
+
 # Make a binary predictions-vector using a cut-off of 50%
-pred_cutoff_50 <- ifelse(predictions_all_R > 0.5, 1, 0)
-
+  pred_cutoff_50 <- ifelse(predictions_all_R > 0.5, 1, 0)
+  
 # Construct a confusion matrix
-conf_matrix_50 <- table(final_test_set$churn, pred_cutoff_50)
-conf_matrix_50
+  conf_matrix_50 <- table(final_test_set$churn, pred_cutoff_50)
 
-#increased my False Negative but lowered my True Positive.
+conf_matrix_50
+```
+```{r}
+mplot_roc(final_test_set$churn, predictions_all_R)
 ```
 Weka - Logistic
 ```{r}
+set.seed(2)
 # comparing models with full dataset
 weka_logistic_model <- Logistic(churn ~ ., data=final_training_set)
-summary(weka_logistic_model)
+  predictions_all_Weka <- predict(weka_logistic_model, newdata = final_test_set, type = "probability")
+  
+  pred_cutoff_501 <- ifelse(predictions_all_Weka[,2] > 0.5, 1, 0)
+  conf_matrix_501 <- table(final_test_set$churn, pred_cutoff_501)
 
-predictions_all_Weka <- predict(weka_logistic_model, newdata = final_test_set, type = c("class", "probability"))
-pred_cutoff_501 <- ifelse(predictions_all_Weka > 0.5, 1, 0)
-
-conf_matrix_501 <- table(final_test_set$churn, pred_cutoff_501)
 conf_matrix_501
+```
+```{r}
+mplot_roc(final_test_set$churn, predictions_all_Weka[,2])
 ```
 Weka - logitBoost
 ```{r}
+set.seed(2)
 Weka_boost_model <- LogitBoost(churn ~ ., data=final_training_set)
-summary(Weka_boost_model)
 
-predictions_all_boost <- predict(Weka_boost_model, newdata = final_test_set, type = c("class", "probability"))
-pred_cutoff_502 <- ifelse(predictions_all_boost > 0.5, 1, 0)
+predictions_all_boost <- predict(Weka_boost_model, newdata = final_test_set, type = "probability")
+pred_cutoff_502 <- ifelse(predictions_all_boost[,2] > 0.5, 1, 0)
 
 conf_matrix_502 <- table(final_test_set$churn, pred_cutoff_502)
 conf_matrix_502
 ```
+```{r}
+mplot_roc(final_test_set$churn, predictions_all_boost[,2])
+```
+
+Loading Model (old)
+```{r}
+#install.packages("caret")
+#install.packages("pROC")
+#install.packages("e1071")
+library(caret)
+library(lattice)
+library(pROC)
+library(e1071)
+
+control <- trainControl(method="cv", number=10)
+metric <- "Accuracy"
+
+# splitting into test/train 75/25
+TeleTrainTest <- tele_clean[,c(unlist(final_vars), "churn")]
+training_split <- createDataPartition(tele_clean$churn, p = 0.75, list=FALSE)
+DstTrainModel <- TeleTrainTest[training_split,]
+DstTestModel <- TeleTrainTest[-training_split,]
+
+trainX <- DstTrainModel[,names(DstTrainModel) != "churn"]
+preProcValues <- preProcess(x = trainX,method = c("center", "scale"))
+preProcValues
+
+```
+
+All the different models (take 1+ day to run, image attached)
+```{r}
+# logistic regression
+set.seed(7)
+fit.glm <- train(churn ~ ., data=DstTrainModel, method="glm", metric=metric, trControl=control)
+
+
+
+# linear algorithms
+set.seed(7)
+fit.lda <- train(churn ~ ., data=DstTrainModel, method="lda", metric=metric, trControl=control)
+
+# CART
+set.seed(7)
+fit.cart <- train(churn ~ ., data=DstTrainModel, method="rpart", metric=metric, trControl=control)
+
+# kNN
+set.seed(7)
+fit.knn <- train(churn ~ ., data=DstTrainModel, method="knn", 
+                 metric=metric, trControl=control, preProcess = c("center","scale"), tuneLength = 5)
+
+# Random Forest
+set.seed(7)
+fit.rf <- train(churn ~ ., data=DstTrainModel, method="rf", metric=metric, trControl=control)
+
+# Gradient Boost Machine (GBM)
+set.seed(7)
+fit.gbm <- train(churn ~ ., data=DstTrainModel, method="gbm", 
+                 metric=metric, trControl=control, verbose=FALSE)
+```
+
+Compare Results
+```{r}
+results <- resamples(list(
+    glm=fit.glm, 
+    lda=fit.lda, 
+    cart=fit.cart,
+    gbm=fit.gbm
+))
+    #knn=fit.knn,
+    #rf=fit.rf,
+summary(results)
+# compare accuracy of models
+dotplot(results)
+
+
+AccCalc <- function(TestFit, name) {
+    # prediction 
+    DstTestModelClean <- DstTestModel
+    DstTestModelClean$churn <- NA
+    predictedval <- predict(TestFit, newdata=DstTestModelClean)
+    
+    # summarize results with confusion matrix
+    cm <- confusionMatrix(predictedval, DstTestModel$churn)
+    
+    # calculate accuracy of the model
+    Accuracy<-round(cm$overall[1],2)
+    acc <- as.data.frame(Accuracy)
+ 
+    roc_obj <- roc(DstTestModel$churn, as.numeric(predictedval))
+    acc$Auc <- auc(roc_obj)
+    
+    acc$FitName <- name
+    return(acc)
+}
+
+accAll <- AccCalc(fit.glm, "glm")
+accAll <- rbind(accAll, AccCalc(fit.lda, "lda"))
+accAll <- rbind(accAll, AccCalc(fit.cart, "cart"))
+#accAll <- rbind(accAll, AccCalc(fit.knn, "knn"))
+#accAll <- rbind(accAll, AccCalc(fit.rf, "rf"))
+accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
+rownames(accAll) <- c()
+arrange(accAll,desc(Accuracy))
+```
+
+
