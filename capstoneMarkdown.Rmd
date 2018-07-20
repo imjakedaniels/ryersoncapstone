@@ -163,7 +163,7 @@ summary(tele_clean[,14:42])
 churn
 ```{r}
 # making into a nominal value, opting for logical so it is easier to understand if customer left (TRUE) or not (FALSE)
-tele_clean$churn <- tele_clean$churn %>% as.factor()
+tele_clean$churn <- factor(tele_clean$churn, levels = c(0,1), labels = c(0,1))
 ```
 asl_flag
 ```{r}
@@ -823,6 +823,8 @@ facet_wrap(~variable, scales = "free")
 ```
 
 
+
+
 Monthly Reporting
 CrossTables relating to Churn
 ```{r}
@@ -893,160 +895,4 @@ by_continent_2007 <- gapminder %>%
   filter(year == 2007) %>%
   group_by(continent) %>%
   summarise(medianGdpPercap = median(gdpPercap), medianLifeExp = median(lifeExp))
-
-# Use a scatter plot to compare the median GDP and median life expectancy
-
-
---------
-
-
-
-----
-
-  
-```
-+more
-
-Modelling in R
-Subsetting
-```{r}
-set.seed(567)
-
-# Store row numbers for training set: index_train
-index_train <- sample(1:nrow(model_tele_clean), 2/3 * nrow(model_tele_clean))
-
-# Create training set: training_set
-training_set <- model_tele_clean[index_train, ]
-
-# Create test set: test_set
-test_set <- model_tele_clean[-index_train, ]
-
-```
-
-GLM with all variables
-```{r}
-# Change the code below to construct a logistic regression model using all available predictors in the data set
-log_model_full <- glm(Customer.churn ~ ., family = "binomial", data = training_set)
-summary(log_model_full)
-# Make PD-predictions for all test set elements using the the full logistic regression model
-predictions_all_full <- predict(log_model_full, newdata = test_set, type = "response")
-
-# Look at the predictions range
-range(predictions_all_full)
-
-# Make a binary predictions-vector using a cut-off of 15%
-pred_cutoff_15 <- ifelse(predictions_all_full > 0.15, 1, 0)
-
-#In the first argument, you are testing whether a certain value in the predictions-vector is bigger than 0.3. If this is TRUE, R returns "1" (specified in the second argument), if FALSE, R returns "0" (specified in the third argument), representing "default" and "no default", respectively.
-
-# Construct a confusion matrix
-conf_matrix_15 <- table(test_set$Customer.churn, pred_cutoff_15)
-conf_matrix_15
-
-```
-
-Loading Model (old)
-```{r}
-#install.packages("caret")
-#install.packages("pROC")
-#install.packages("e1071")
-library(caret)
-library(lattice)
-library(pROC)
-library(e1071)
-
-control <- trainControl(method="cv", number=10)
-metric <- "Accuracy"
-
-# based on Weka infoGain and pvalue from logi test
-varsToKeep <- c('churn', 'totmrc_Mean', 'roam_Mean', 'change_mou', 'custcare_Mean', 'ccrndmou_Mean', 'cc_mou_Mean', 'threeway_Mean', 'months', 'uniqsubs', 'actvsubs', 'new_cell', 'asl_flag', 'totcalls', 'adjrev', 'adjqty', 'avgmou', 'avg6mou', 'avg6qty', 'prizm_social_one', 'area', 'refurb_new', 'hnd_price', 'hnd_webcap', 'lor', 'income', 'numbcars', 'kid16_17', 'eqpdays')
-
-# splitting into test/train 75/25
-TeleTrainTest <- tele_clean[,varsToKeep]
-training_split <- createDataPartition(tele_clean$Customer.churn, p = 0.75, list=FALSE)
-DstTrainModel <- TeleTrainTest[training_split,]
-DstTestModel <- TeleTrainTest[-training_split,]
-
-trainX <- DstTrainModel[,names(DstTrainModel) != "Customer.churn"]
-preProcValues <- preProcess(x = trainX,method = c("center", "scale"))
-preProcValues
-```
-
-All the different models (take 1+ day to run, image attached)
-```{r}
-# logistic regression
-set.seed(7)
-fit.glm <- train(Customer.churn ~ ., data=DstTrainModel, method="glm", metric=metric, trControl=control)
-
-# linear algorithms
-set.seed(7)
-fit.lda <- train(Customer.churn ~ ., data=DstTrainModel, method="lda", metric=metric, trControl=control)
-
-# CART
-set.seed(7)
-fit.cart <- train(Customer.churn ~ ., data=DstTrainModel, method="rpart", metric=metric, trControl=control)
-
-# kNN
-set.seed(7)
-fit.knn <- train(Customer.churn ~ ., data=DstTrainModel, method="knn", 
-                 metric=metric, trControl=control, preProcess = c("center","scale"), tuneLength = 5)
-# SVM
-set.seed(7)
-fit.svm <- train(Customer.churn ~ ., data=DstTrainModel, method="svmRadial", metric=metric, trControl=control)
-
-# Random Forest
-set.seed(7)
-fit.rf <- train(Customer.churn ~ ., data=DstTrainModel, method="rf", metric=metric, trControl=control)
-
-# Gradient Boost Machine (GBM)
-set.seed(7)
-fit.gbm <- train(Customer.churn ~ ., data=DstTrainModel, method="gbm", 
-                 metric=metric, trControl=control, verbose=FALSE)
-```
-
-Compare Results
-```{r}
-results <- resamples(list(
-    glm=fit.glm, 
-    lda=fit.lda, 
-    cart=fit.cart,
-    knn=fit.knn,
-    svm=fit.svm, 
-    rf=fit.rf,
-    gbm=fit.gbm
-))
-#summary(results)
-# compare accuracy of models
-dotplot(results)
-
-
-AccCalc <- function(TestFit, name) {
-    # prediction 
-    DstTestModelClean <- DstTestModel
-    DstTestModelClean$churn <- NA
-    predictedval <- predict(TestFit, newdata=DstTestModelClean)
-    
-    # summarize results with confusion matrix
-    cm <- confusionMatrix(predictedval, DstTestModel$Customer.churn)
-    
-    # calculate accuracy of the model
-    Accuracy<-round(cm$overall[1],2)
-    acc <- as.data.frame(Accuracy)
- 
-    roc_obj <- roc(DstTestModel$Customer.churn, as.numeric(predictedval))
-    acc$Auc <- auc(roc_obj)
-    
-    acc$FitName <- name
-    return(acc)
-}
-
-accAll <- AccCalc(fit.glm, "glm")
-accAll <- rbind(accAll, AccCalc(fit.lda, "lda"))
-accAll <- rbind(accAll, AccCalc(fit.cart, "cart"))
-accAll <- rbind(accAll, AccCalc(fit.knn, "knn"))
-accAll <- rbind(accAll, AccCalc(fit.svm, "svm"))
-accAll <- rbind(accAll, AccCalc(fit.rf, "rf"))
-accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
-rownames(accAll) <- c()
-arrange(accAll,desc(Accuracy))
 ```
