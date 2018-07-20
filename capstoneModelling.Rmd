@@ -15,6 +15,8 @@ library(caret)
 library(lattice)
 library(pROC)
 library(e1071)
+
+load(tele_clean.csv)
 ```
 
 ```{r]}
