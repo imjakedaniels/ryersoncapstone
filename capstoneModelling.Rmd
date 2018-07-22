@@ -135,10 +135,10 @@ Extreme values - beyond the 99 percentile
 ```{r}
 library(outliers)
 
-rows_chisq <- scores(tele_clean,type="chisq", prob=0.99) %>%
+rows_chisq <- scores(tele_clean,type="chisq", prob=0.999) %>%
   summarise_all(funs(sum)) 
 
-rows_zscore <- scores(tele_clean,type="z", prob=0.99) %>%
+rows_zscore <- scores(tele_clean,type="z", prob=0.999) %>%
   summarise_all(funs(sum))
 
 clekr<-rbind(rows_chisq, rows_zscore)
@@ -150,14 +150,9 @@ test<- tele_clean
 
 test1<- scores(test,type="chisq", prob=0.999)
 test1
-rowSums(test1, na.rm = T)
 
-test[which(scores(test,type="chisq", prob=0.99) == T),]
-
-
-row.names(test[which(scores(test,type="chisq", prob=0.99) == T),])
-
-
+test[which(rowSums(test1, na.rm = T) >=5),] <- NA
+tele_clean_rows <- test[which(!is.na(test$drop_vce_Mean)),]
 ```
 
 
@@ -169,9 +164,9 @@ Normalizing then filtering low variance attributes
 normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
 
 # locating all numerics out of set
-nums <- unlist(lapply(tele_clean, is.numeric)) 
+nums <- unlist(lapply(tele_clean_rows, is.numeric)) 
 # applying formula
-normalized <- sapply(tele_clean[,nums], normFunc) %>% as.data.frame()
+normalized <- sapply(tele_clean_rows[,nums], normFunc) %>% as.data.frame()
 
 # examing distributions for low variance (limited to absolute 3 to negate extreme values)
 melt(normalized[,1:12]) %>%
@@ -208,31 +203,48 @@ ggplot(aes(x=value)) +
 #mou_opk_data_Mean
 #callfwdv_Mean
 ```
-
 ```{r}
-melt(normalized[,61:72]) %>%
+melt(normalized[,49:60]) %>%
   filter(abs(value) <= 3) %>%
 ggplot(aes(x=value)) +
   stat_ecdf() +
   facet_wrap(~variable, scales = "free") +
   theme_bw()
 #drop_data_Mean
+```
+
+```{r}
+melt(normalized[,61:71]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
 #blck_data_Mean
 #unan_data_Mean
 #plcd_data_Mean
 #recv_sms_Mean
 ```
-Low Variance/SD Variables
+My Selections of Low Variance Variables to drop
 ```{r}
+# my list
 low_variance <- c("datovr_Mean", "roam_Mean", "comp_data_Mean", "mou_compdata_Mean", "peak_data_Mean", "mou_peak_data_Mean", "opk_data_Mean", "mou_opk_data_Mean", "callfwdv_Mean", "drop_data_Mean", "blck_data_Mean", "unan_data_Mean", "plcd_data_Mean", "recv_sms_Mean")
+
+# using caret
+library(caret)
+temp2<- preProcess(x=tele_clean_rows, method = c("nzv"))
+temp2$method$remove
+
+# my variance vs near-zero variance from caret
+list(temp2$method$remove, low_variance)
 ```
 
 Correlation - Pearson vs Spearman
 ```{r}
 # pearson 
-tele_clean$churn <- tele_clean$churn %>% as.numeric()
-nums <- unlist(lapply(tele_clean, is.numeric))  
-Cl <- cor(tele_clean[,nums], method = "pearson")
+tele_clean_rows$churn <- tele_clean_rows$churn %>% as.numeric()
+nums <- unlist(lapply(tele_clean_rows, is.numeric))  
+Cl <- cor(tele_clean_rows[,nums], method = "pearson")
 Cl <- ifelse(Cl > 0, Cl^.5, -abs(Cl)^.5)
 Cl <- as.data.frame(Cl)
 df1<- Cl %>%
@@ -241,7 +253,7 @@ df1<- Cl %>%
   arrange(desc(churn))
 
 # spearman
-ClS <- cor(tele_clean[,nums], method = "spearman")
+ClS <- cor(tele_clean_rows[,nums], method = "spearman")
 ClS <- ifelse(ClS > 0, ClS^.5, -abs(ClS)^.5)
 ClS <- as.data.frame(ClS)
 df2<-ClS %>% 
@@ -257,8 +269,8 @@ correlations_ordered <- correlations %>%
   filter(variable != "churn") %>%
   arrange(desc(spearman))
 correlations_ordered
-
 ```
+PROB REMOVE THIS
 ```{r}
 model_name <- paste("R - method: pearson/spearman")
 subtitle <- paste("Top 15 Variables Ranked on Correlation to Churn")
@@ -321,16 +333,20 @@ mplot_correlations <- function(var, imp, colours = NA, limit = 15, model_name = 
 mplot_correlations(correlations_ordered$variable,correlations_ordered$pearson, model_name=model_name, subtitle=subtitle)
 mplot_correlations(correlations_ordered$variable,correlations_ordered$spearman, model_name=model_name, subtitle=subtitle)
 ```
-
-Low correlation variables
+Using caret to remove co-linear variables
 ```{r}
-# isolating low correlation varibles
-low_correlation <- which(abs(correlations[,2:3]) < 0.1)
-correlations[low_correlation,]
+library(caret)
+# correlations
+temp<- preProcess(x=tele_clean_rows, method = c("corr"))
+temp$method$remove
+removed <- temp$method$remove
 
-#pearson producing lower correlations to churn
-low_correlation2 <- which(abs(correlations$pearson) < 0.1 & abs(correlations$spearman) < 0.1)
-correlations[low_correlation2,]
+# nzv
+removed2 <- temp2$method$remove
+
+extra_set <- tele_clean_rows
+extra_set[,removed] <- NULL
+extra_set[,removed2] <- NULL
 ```
 
 ```{r}
@@ -342,106 +358,22 @@ write.arff(tele_clean, file = "capstone.arff")
 Weka - InfoGain
 ```{r}
 # infogain top attributes
-tele_clean$churn <- tele_clean$churn %>% as.factor()
-wekainfo <- InfoGainAttributeEval(churn ~ . , data = tele_clean)
-
-infogain <- as.data.frame(wekainfo) %>%
-  mutate(variable = names(tele_clean[,-13]), wekainfo = wekainfo) %>%
-  arrange(desc(wekainfo))
-
-mplot_importance <- function(var, imp, colours = NA, limit = 15, model_name = NA, subtitle = NA,
-                             save = FALSE, file_name = "viz_importance.png", subdir = NA) {
-  
-  require(ggplot2)
-  require(gridExtra)
-  options(warn=-1)
-  
-  if (length(var) != length(imp)) {
-    message("The variables and importance values vectors should be the same length.")
-    stop(message(paste("Currently, there are",length(var),"variables and",length(imp),"importance values!")))
-  }
-  if (is.na(colours)) {
-    colours <- "deepskyblue" 
-  }
-  out <- data.frame(var = var, imp = imp, Type = colours)
-  if (length(var) < limit) {
-    limit <- length(var)
-  }
-  
-  output <- out[1:limit,]
-  
-  p <- ggplot(output, 
-              aes(x = reorder(var, imp), y = imp * 100, 
-                  label = round(100 * imp, 1))) + 
-    geom_col(aes(fill = Type), width = 0.1) +
-    geom_point(aes(colour = Type), size = 6) + 
-    coord_flip() + xlab('') + theme_minimal() +
-    ylab('Importance') + 
-    geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white") +
-    labs(title = paste0("Variables Importances. (", limit, " / ", length(var), " plotted)"))
-  
-  if (length(unique(output$Type)) == 1) {
-    p <- p + geom_col(fill = colours, width = 0.2) +
-      geom_point(colour = colours, size = 6) + 
-      guides(fill = FALSE, colour = FALSE) + 
-      geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white")
-  }
-  if(!is.na(model_name)) {
-    p <- p + labs(caption = model_name)
-  }
-  if(!is.na(subtitle)) {
-    p <- p + labs(subtitle = subtitle)
-  }  
-  if(save == TRUE) {
-    if (!is.na(subdir)) {
-      dir.create(file.path(getwd(), subdir))
-      file_name <- paste(subdir, file_name, sep="/")
-    }
-    p <- p + ggsave(file_name, width=7, height=6)
-  }
-  
-  return(p)
-  
-}
+extra_wekainfo <- InfoGainAttributeEval(churn ~ . , data = extra_set)
+extra_infogain <- as.data.frame(extra_wekainfo) %>%
+  mutate(variable = names(extra_set[,-8]), extra_wekainfo = extra_wekainfo) %>%
+  arrange(desc(extra_wekainfo))
 
 model_name <- paste("Weka - InfoGainAttributeEval")
 subtitle <- paste("Top 15 Variables Ranked on Importance")
-
-mplot_importance(infogain$variable,infogain$wekainfo, model_name=model_name, subtitle=subtitle)
+mplot_importance(extra_infogain$variable,extra_infogain$extra_wekainfo, model_name=model_name, subtitle=subtitle)
 ```
-
 ```{r}
-# correlations
-temp<- preProcess(x=last, method = c("corr"))
-temp$method$remove
-
-# my variance vs caret
-temp2<- preProcess(x=last, method = c("nzv"))
-list(temp2$method$remove, low_variance)
-
-removed <- temp$method$remove
-cor(tele_clean[,removed])
-
-
-extra_set[,removed] <- NULL
-extra_wekainfo <- InfoGainAttributeEval(churn ~ . , data = extra_set)
-
-extra_infogain <- as.data.frame(extra_wekainfo) %>%
-  mutate(variable = names(extra_set[,-10]), extra_wekainfo = extra_wekainfo) %>%
+# i will keep all variables > 0.1 gain
+final_vars <- as.data.frame(extra_infogain) %>%
+  mutate(variable = names(extra_set[,-8]), extra_wekainfo = extra_wekainfo*100) %>%
+  filter(extra_wekainfo >0.1) %>%
   arrange(desc(extra_wekainfo))
 
-mplot_importance(extra_infogain$variable,extra_infogain$extra_wekainfo, model_name=model_name, subtitle=subtitle)
-
-
-
-# i will keep all variables > 0.1 gain
-final_vars <- as.data.frame(wekainfo) %>%
-  mutate(variable = names(tele_clean[,-13]), wekainfo = wekainfo*100) %>%
-  filter(wekainfo >0.1) %>%
-  arrange(desc(wekainfo)) %>%
-  select(variable)
-
-low_variance 
 final_vars
 ```
 
@@ -450,15 +382,14 @@ Feature Selection Models
 # using our chosen variables
 model_tele_clean <- tele_clean[,c(unlist(final_vars), "churn")]
 
-set.seed(2)
 # splitting data
-index_train <- sample(1:nrow(model_tele_clean), 2/3 * nrow(model_tele_clean))
-final_training_set <- model_tele_clean[index_train, ]
-final_test_set <- model_tele_clean[-index_train, ]
+index_train <- sample(1:nrow(extra_set), 2/3 * nrow(extra_set))
+final_training_set <- extra_set[index_train, ]
+final_test_set <- extra_set[-index_train, ]
 ```
 R - Logistic
 ```{r}
-set.seed(2)
+set.seed(1)
 R_logistic_model <- glm(churn ~ ., family = "binomial", data = final_training_set)
   predictions_all_R <- predict(R_logistic_model, newdata = final_test_set, type = "response")
 
@@ -471,7 +402,7 @@ R_logistic_model <- glm(churn ~ ., family = "binomial", data = final_training_se
 conf_matrix_50
 ```
 ```{r}
-mplot_roc(final_test_set$churn, predictions_all_R)
+mplot_roc(final_test_set$churn, predictions_all_R)daniels11
 ```
 Weka - Logistic
 ```{r}
