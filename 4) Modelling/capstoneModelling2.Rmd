@@ -1,0 +1,317 @@
+---
+title: "capstoneModelling2"
+author: "Jake Daniels"
+date: "July 22, 2018"
+output: html_document
+---
+
+# Part 4) Modelling
+
+R - Logistic 
+```{r}
+set.seed(1)
+# data split 75% train - 25% validate
+index_train <- sample(1:nrow(final_set), 3/4 * nrow(final_set))
+final_training_set <- final_set[index_train, ]
+validation <- final_set[-index_train, ]
+
+# model build
+R_logistic_model <- glm(churn ~ ., family = "binomial", data = final_training_set)
+  R_predictions <- predict(R_logistic_model, newdata = validation, type = "response")
+
+# using 50% cutoff as our indicator someone will churn, can be reduced
+  R_pred_cutoff_50 <- ifelse(R_predictions > 0.5, 1, 0)
+  
+# Constructing a confusion matrix
+  R_conf_matrix_50 <- table(validation$churn, R_pred_cutoff_50) %>% confusionMatrix(positive='1')
+
+R_conf_matrix_50
+```
+```{r}
+model_name <- paste("glm(churn ~ ., family = 'binomial', data = final_training_set)")
+subtitle <- paste("Logistic Regression in R")  
+mplot_roc(validation$churn, R_predictions)
+```
+Caret - Logistic 10 Fold
+```{r}
+# train a model and summarize model
+set.seed(1)
+control <- trainControl(method="cv", number=10)
+fit.glm <- train(churn~., data=final_training_set, method="glm", metric="Accuracy", trControl=control)
+
+# estimate skill on validation dataset
+set.seed(1)
+fit.glm_pred_cutoff_50 <- predict(fit.glm, newdata=validation)
+
+# Constructing a confusion matrix
+  fit.glm_conf_matrix_50 <- table(validation$churn, fit.glm_pred_cutoff_50) %>% confusionMatrix(positive='1')
+
+fit.glm_conf_matrix_50
+```
+```{r}
+model_name <- paste("train(churn~., data=final_training_set, method='glm', metric='Accuracy', trControl=control)")
+subtitle <- paste("10-Fold Logistic Regression with Caret")  
+fit.glm_predictions <- predict(fit.glm, newdata=validation, type = "prob")
+mplot_roc(validation$churn, fit.glm_predictions[,2])
+```
+Weka - logitBoost
+```{r}
+set.seed(1)
+Weka_boost_model <- LogitBoost(churn ~ ., data=final_training_set)
+
+Weka_boost_predictions <- predict(Weka_boost_model, newdata = validation, type = "probability")
+  Weka_boost_pred_cutoff_50 <- ifelse(Weka_boost_predictions[,2] > 0.5, 1, 0)
+  Weka_boost_conf_matrix_50 <- table(validation$churn, Weka_boost_pred_cutoff_50) %>% confusionMatrix(positive='1')
+Weka_boost_conf_matrix_50
+```
+```{r}
+model_name <- paste("LogitBoost(churn ~ ., data=final_training_set)")
+subtitle <- paste("LogitBoost with Weka")  
+mplot_roc(validation$churn, Weka_boost_predictions[,1])
+```
+Weka - Naive Bayes
+```{r}
+NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
+weka_NB_model <- NB(churn ~ ., data=final_training_set)
+
+Weka_NB_predictions <- predict(weka_NB_model, newdata = validation, type = "probability")
+Weka_NB_pred_cutoff_50 <- ifelse(Weka_NB_predictions[,2] > 0.5, 1, 0)
+
+Weka_NB_conf_matrix_503 <- table(validation$churn, Weka_NB_pred_cutoff_50) %>% confusionMatrix(positive='1')
+Weka_NB_conf_matrix_503
+```
+```{r}
+model_name <- paste("NB(churn ~ ., data=final_training_set)")
+subtitle <- paste("Naive Bayes with Weka")  
+mplot_roc(validation$churn, Weka_NB_predictions[,2])
+```
+
+```{r}
+# NEURAL NETWORK
+MLP <- make_Weka_classifier('weka/classifiers/functions/MultilayerPerceptron')
+BoW_MLP_m <- MLP( churn~ ., data = final_training_set,control = Weka_control(N=70,L=0.3))
+
+predictions_all_MLP <- predict(BoW_MLP_m, newdata = validation, type = "probability")
+MLP_pred_cutoff_50 <- ifelse(predictions_all_MLP[,2] > 0.5, 1, 0)
+
+MLP_conf_matrix_50 <- table(validation$churn, MLP_pred_cutoff_50) %>% confusionMatrix(positive='1')
+MLP_conf_matrix_50
+
+```
+```{r}
+mplot_roc(validation$churn, predictions_all_MLP[,1])
+```
+
+Weka - Random Forest
+```{r}
+WekaForest <- make_Weka_classifier("weka/classifiers/trees/RandomForest")
+
+Weka_forest_model <- WekaForest(churn ~ ., data=final_training_set)
+
+Weka_forest_predictions <- predict(Weka_forest_model, newdata = validation, type = "probability")
+Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
+
+Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix(positive='1')
+Weka_forest_conf_matrix_50
+
+```
+```{r}
+frame4<- mplot_roc(validation$churn, Weka_forest_predictions[,2])
+frame4
+```
+
+Looking at data divide for best model
+```{r}
+mplot_density <- function(tag, score, model_name = NA, subtitle = NA, 
+                          save = FALSE, file_name = "viz_distribution.png") {
+  require(ggplot2)
+  require(gridExtra)
+
+  if (length(tag) != length(score)) {
+    message("The tag and score vectors should be the same length.")
+    stop(message(paste("Currently, tag has",length(tag),"rows and score has",length(score))))
+  }
+
+  if (length(unique(tag)) != 2) {
+    stop("This function is for binary models. You should only have 2 unique values for the tag value!")
+  }
+  normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
+  out <- data.frame(tag = as.character(tag),
+                    score = as.numeric(score),
+                    norm_score = normFunc(as.numeric(score)))
+  
+  p1 <- ggplot(out) + theme_minimal() +
+    geom_density(aes(x = 100 * score, group = tag, fill = as.character(tag)), 
+                 alpha = 0.6, adjust = 0.25) + 
+    guides(fill = guide_legend(title="Tag")) + 
+    xlim(0, 100) + 
+    labs(title = "Score distribution for binary model",
+         y = "Density by tag", x = "Score")
+return(p1)
+}
+frame1 <- mplot_density(validation$churn, Weka_forest_predictions[,2])
+frame1
+```
+
+```{r}
+mplot_cuts <- function(score, splits = 10, subtitle = NA, model_name = NA, 
+                       save = FALSE, file_name = "viz_ncuts.png") {
+  
+  require(ggplot2)
+  require(RColorBrewer)
+  if (splits > 25) {
+    stop("You should try with less splits!")
+  }
+  
+  deciles <- quantile(score, 
+                      probs = seq((1/splits), 1, length = splits), 
+                      names = TRUE)
+  deciles <- data.frame(cbind(Deciles=row.names(as.data.frame(deciles)),
+                              Threshold=as.data.frame(deciles)))
+  
+  p <- ggplot(deciles, 
+              aes(x = reorder(Deciles, deciles), y = deciles * 100, 
+                  label = round(100 * deciles, 1))) + 
+    geom_col(fill="deepskyblue") + 
+    xlab('') + theme_minimal() + ylab('Score') + 
+    geom_text(vjust = 1.5, size = 3, inherit.aes = TRUE, colour = "white", check_overlap = TRUE) +
+    labs(title = paste("Cuts by score"))
+
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  } 
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+  if (save == TRUE) {
+    p <- p + ggsave(file_name, width = 6, height = 6)
+  }
+  return(p)
+}
+
+frame3<- mplot_cuts(Weka_forest_predictions[,2])
+frame3
+# score = predicted % to churn between 0-100%
+```
+
+
+```{r}
+library(RColorBrewer)
+
+  df <- data.frame(validation$churn, Weka_forest_predictions[,2])
+  npersplit <- round(nrow(df)/5)
+  names <- df %>%
+    mutate(quantile = ntile(Weka_forest_predictions[,2], 5)) %>% group_by(quantile) %>%
+    summarise(n = n(), 
+              max_score = round(100 * max(Weka_forest_predictions[,2]), 1), 
+              min_score = round(100 * min(Weka_forest_predictions[,2]), 1)) %>%
+    mutate(quantile_tag = paste0(quantile," (",min_score,"-",max_score,")"))
+  
+  frame2 <- df %>%
+    mutate(quantile = ntile(Weka_forest_predictions[,2], 5)) %>% 
+    group_by(quantile, validation.churn) %>% tally() %>%
+    ungroup() %>% group_by(validation.churn) %>% 
+    arrange(desc(quantile)) %>%
+    mutate(p = round(100*n/sum(n),2),
+           cum = cumsum(100*n/sum(n))) %>%
+    left_join(names, by = c("quantile")) %>%
+    ggplot(aes(x = as.character(validation.churn), y = p, label = as.character(p),
+               fill = as.character(quantile_tag))) + theme_minimal() +
+    geom_col(position = "stack") +
+    geom_text(size = 3, position = position_stack(vjust = 0.5), check_overlap = TRUE) +
+    xlab("Tag") + ylab("Total Percentage by Tag") +
+    guides(fill = guide_legend(title=paste0("~",npersplit," p/split"))) +
+    labs(title = "Tag vs Score Splits Comparison") +
+    scale_fill_brewer(palette = "Spectral", direction=-1)
+  
+  frame2
+```
+
+```{r}
+grid.arrange(
+      frame1, frame2, frame4, frame3,
+      widths = c(1.3,1),
+      layout_matrix = rbind(c(1,2), c(1,2), c(1,3), c(4,3)))
+```
+
+```{r}
+# save the model to disk
+saveRDS(Weka_forest_model, "./Weka_forest_model.rds")
+ 
+# load the model
+final_model <- readRDS("./Weka_forest_model.rds")
+print(final_model)
+# make a predictions on "new data" using the final model
+final_predictions <- predict(final_model, validation$churn)
+confusionMatrix(final_predictions, validation$Class, positive='1')
+```
+
+Other caret models
+```{r}
+# linear algorithms
+set.seed(7)
+fit.lda <- train(churn ~ ., data=DstTrainModel, method="lda", metric=metric, trControl=control)
+
+# CART
+set.seed(7)
+fit.cart <- train(churn ~ ., data=DstTrainModel, method="rpart", metric=metric, trControl=control)
+
+# kNN
+set.seed(7)
+fit.knn <- train(churn ~ ., data=DstTrainModel, method="knn", 
+                 metric=metric, trControl=control, preProcess = c("center","scale"), tuneLength = 5)
+
+# Random Forest
+set.seed(7)
+fit.rf <- train(churn ~ ., data=DstTrainModel, method="rf", metric=metric, trControl=control)
+
+# Gradient Boost Machine (GBM)
+set.seed(7)
+fit.gbm <- train(churn ~ ., data=DstTrainModel, method="gbm", 
+                 metric=metric, trControl=control, verbose=FALSE)
+```
+
+Compare Results
+```{r}
+results <- resamples(list(
+    glm=fit.glm, 
+    lda=fit.lda, 
+    cart=fit.cart,
+    gbm=fit.gbm
+))
+    #knn=fit.knn,
+    #rf=fit.rf,
+summary(results)
+# compare accuracy of models
+dotplot(results)
+
+
+AccCalc <- function(TestFit, name) {
+    # prediction 
+    DstTestModelClean <- DstTestModel
+    DstTestModelClean$churn <- NA
+    predictedval <- predict(TestFit, newdata=DstTestModelClean)
+    
+    # summarize results with confusion matrix
+    cm <- confusionMatrix(predictedval, DstTestModel$churn)
+    
+    # calculate accuracy of the model
+    Accuracy<-round(cm$overall[1],2)
+    acc <- as.data.frame(Accuracy)
+ 
+    roc_obj <- roc(DstTestModel$churn, as.numeric(predictedval))
+    acc$Auc <- auc(roc_obj)
+    
+    acc$FitName <- name
+    return(acc)
+}
+
+accAll <- AccCalc(fit.glm, "glm")
+accAll <- rbind(accAll, AccCalc(fit.lda, "lda"))
+accAll <- rbind(accAll, AccCalc(fit.cart, "cart"))
+#accAll <- rbind(accAll, AccCalc(fit.knn, "knn"))
+#accAll <- rbind(accAll, AccCalc(fit.rf, "rf"))
+accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
+rownames(accAll) <- c()
+arrange(accAll,desc(Accuracy))
+```

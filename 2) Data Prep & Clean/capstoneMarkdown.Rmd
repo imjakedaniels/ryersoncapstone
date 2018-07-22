@@ -48,10 +48,10 @@ Execute Script: R - Correcting NA Values.R
 # manually inserting with script
 library(knitr)
 opts_chunk$set(echo = FALSE, cache=FALSE)
-read_chunk('../ryersoncapstone1/R - Correcting NA Values.R')
+read_chunk('~/ryersoncapstone1/2) Data Prep & Clean/R - Correcting NA Values.R')
 ```
-```{r part1}
-read_chunk('../ryersoncapstone1/R - Correcting NA Values.R')
+```{r part1} 
+read_chunk('~/ryersoncapstone1/2) Data Prep & Clean/R - Correcting NA Values.R')
 ```
 Combining all tables to make dropping rows consistent when cleaning
 ```{r}
