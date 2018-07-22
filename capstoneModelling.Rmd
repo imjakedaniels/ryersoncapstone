@@ -1,0 +1,656 @@
+---
+title: "FeatureSelection"
+author: "Jake Daniels"
+date: "July 18, 2018"
+output: html_document
+---
+
+Part 3) Modelling
+
+Pre-feature selection models
+
+Necessary Packages
+```{r}
+#install.packages("caret") - for preProcess
+#install.packages("e1071") - for confusionMatrix
+#install.packages("pROC") - for ROC
+#install.packages("RWeka") - for RWeka
+library(caret)
+library(e1071)
+library(lattice) # might not need cuz caret autoloads
+library(pROC)
+library(RWeka)
+```
+Loading packages from part 2 cleaning
+```{r}
+library(tidyverse)
+library(gmodels)
+library(plotly)
+library(reshape2)
+```
+
+Splitting data into 66% training 33% test
+```{r}
+tele_clean$Customer_ID <- NULL
+index_train <- sample(1:nrow(tele_clean), 2/3 * nrow(tele_clean))
+training_set <- tele_clean[index_train, ]
+test_set <- tele_clean[-index_train, ]
+```
+R - Logistic
+```{r}
+set.seed(1)
+R_logistic_model <- glm(churn ~ ., family = "binomial", data = training_set)
+predictions_all_R <- predict(R_logistic_model, newdata = test_set, type = "response")
+
+# Make a binary predictions-vector using a cut-off of 50%
+  pred_cutoff_50 <- ifelse(predictions_all_R > 0.5, 1, 0)
+  
+# Construct a confusion matrix
+  conf_matrix_50 <- table(test_set$churn, pred_cutoff_50) %>% confusionMatrix()
+conf_matrix_50
+
+# Sensitivity = True Positive Rate
+# Specificity = False Positive Rate
+```
+Visualizing
+```{r}
+# quickly evaluating with ROC function
+mplot_roc <- function(tag, score, model_name = NA, subtitle = NA, interval = 0.2, plotly = FALSE,
+save = FALSE, file_name = "viz_roc.png") {
+  require(pROC)
+  require(ggplot2)
+
+  if (length(tag) != length(score)) {
+    message("The tag and score vectors should be the same length.")
+    stop(message(paste("Currently, tag has",length(tag),"rows and score has",length(score))))
+  }
+
+  roc <- pROC::roc(tag, score, ci=T)
+  coords <- data.frame(
+    x = rev(roc$specificities),
+    y = rev(roc$sensitivities))
+  ci <- data.frame(roc$ci, row.names = c("min","AUC","max"))
+
+  p <- ggplot(coords, aes(x = x, y = y)) +
+    geom_line(colour = "deepskyblue", size = 1) +
+    geom_point(colour = "blue3", size = 0.9, alpha = 0.4) +
+    geom_segment(aes(x = 0, y = 1, xend = 1, yend = 0), alpha = 0.2, linetype = "dotted") + 
+    scale_x_reverse(name = "% Specificity [False Positive Rate]", limits = c(1,0), 
+                    breaks = seq(0, 1, interval), expand = c(0.001,0.001)) + 
+    scale_y_continuous(name = "% Sensitivity [True Positive Rate]", limits = c(0,1), 
+                       breaks = seq(0, 1, interval), expand = c(0.001, 0.001)) +
+    theme_minimal() + 
+    theme(axis.ticks = element_line(color = "grey80")) +
+    coord_equal() + 
+    ggtitle("ROC Curve: AUC") +
+    annotate("text", x = 0.25, y = 0.10, vjust = 0, size = 4.2, 
+             label = paste("AUC =", round(100*ci[c("AUC"),],2))) +
+    annotate("text", x = 0.25, y = 0.05, vjust = 0, size = 2.8, 
+             label = paste0("95% CI: ", 
+                            round(100*ci[c("min"),],2),"-", 
+                            round(100*ci[c("max"),],2)))
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  }  
+
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+
+  if (plotly == TRUE) {
+    require(plotly)
+    p <- ggplotly(p)
+  }
+
+  if (save == TRUE) {
+    p <- p + ggsave(file_name, width = 6, height = 6)
+  }
+  return(p)
+}
+
+model_name <- paste("glm(churn ~ ., family = 'binomial', data = training_set)")
+subtitle <- paste("Logistic Regression in R - ALL Variables")  
+mplot_roc(test_set$churn, predictions_all_R, model_name = model_name, subtitle = subtitle)
+```
+Weka - Logistic
+```{r}
+set.seed(1)
+weka_logistic_model <- Logistic(churn ~ ., data=training_set)
+predictions_all_Weka <- predict(weka_logistic_model, newdata = test_set, type = "probability")
+
+  pred_cutoff_501 <- ifelse(predictions_all_Weka[,2] > 0.5, 1, 0)
+  conf_matrix_501 <- table(test_set$churn, pred_cutoff_501) %>% confusionMatrix()
+                                        
+conf_matrix_501
+```
+Visualizing
+```{r}
+model_name <- paste("Logistic(churn ~ ., data=training_set)")
+subtitle <- paste("Logistic Regression in Weka - ALL Variables")  
+mplot_roc(test_set$churn, predictions_all_R, model_name = model_name, subtitle = subtitle)
+```
+
+Filtering Rows\
+Extreme values - beyond the 99 percentile
+```{r}
+library(outliers)
+
+rows_chisq <- scores(tele_clean,type="chisq", prob=0.999) %>%
+  summarise_all(funs(sum)) 
+
+rows_zscore <- scores(tele_clean,type="z", prob=0.999) %>%
+  summarise_all(funs(sum))
+
+clekr<-rbind(rows_chisq, rows_zscore)
+row.names(clekr) <- c("chisq", "z-score")
+clekr
+
+
+test<- tele_clean 
+
+test1<- scores(test,type="chisq", prob=0.999)
+test1
+
+test[which(rowSums(test1, na.rm = T) >=5),] <- NA
+tele_clean_rows <- test[which(!is.na(test$drop_vce_Mean)),]
+```
+
+
+
+Feature Selection
+Normalizing then filtering low variance attributes
+```{r}
+# normalizing function
+normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
+
+# locating all numerics out of set
+nums <- unlist(lapply(tele_clean_rows, is.numeric)) 
+# applying formula
+normalized <- sapply(tele_clean_rows[,nums], normFunc) %>% as.data.frame()
+
+# examing distributions for low variance (limited to absolute 3 to negate extreme values)
+melt(normalized[,1:12]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#datovr
+```
+
+```{r}
+melt(normalized[,25:36]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#roam_Mean
+#comp_data_Mean
+#mou_compdata_Mean
+```
+
+```{r}
+melt(normalized[,37:48]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#peak_data_Mean
+#mou_peak_data_Mean
+#opk_data_Mean
+#mou_opk_data_Mean
+#callfwdv_Mean
+```
+```{r}
+melt(normalized[,49:60]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#drop_data_Mean
+```
+
+```{r}
+melt(normalized[,61:71]) %>%
+  filter(abs(value) <= 3) %>%
+ggplot(aes(x=value)) +
+  stat_ecdf() +
+  facet_wrap(~variable, scales = "free") +
+  theme_bw()
+#blck_data_Mean
+#unan_data_Mean
+#plcd_data_Mean
+#recv_sms_Mean
+```
+My Selections of Low Variance Variables to drop
+```{r}
+# my list
+low_variance <- c("datovr_Mean", "roam_Mean", "comp_data_Mean", "mou_compdata_Mean", "peak_data_Mean", "mou_peak_data_Mean", "opk_data_Mean", "mou_opk_data_Mean", "callfwdv_Mean", "drop_data_Mean", "blck_data_Mean", "unan_data_Mean", "plcd_data_Mean", "recv_sms_Mean")
+
+# using caret
+library(caret)
+temp2<- preProcess(x=tele_clean_rows, method = c("nzv"))
+temp2$method$remove
+
+# my variance vs near-zero variance from caret
+list(temp2$method$remove, low_variance)
+```
+
+Correlation - Pearson vs Spearman
+```{r}
+# pearson 
+tele_clean_rows$churn <- tele_clean_rows$churn %>% as.numeric()
+nums <- unlist(lapply(tele_clean_rows, is.numeric))  
+Cl <- cor(tele_clean_rows[,nums], method = "pearson")
+Cl <- ifelse(Cl > 0, Cl^.5, -abs(Cl)^.5)
+Cl <- as.data.frame(Cl)
+df1<- Cl %>%
+  select(churn) %>%
+  mutate(variable = names(Cl)) %>%
+  arrange(desc(churn))
+
+# spearman
+ClS <- cor(tele_clean_rows[,nums], method = "spearman")
+ClS <- ifelse(ClS > 0, ClS^.5, -abs(ClS)^.5)
+ClS <- as.data.frame(ClS)
+df2<-ClS %>% 
+  select(churn) %>%
+  mutate(variable = names(ClS)) %>%
+  arrange(desc(churn))
+
+# looking at side by side
+correlations <- merge(df1,df2, by = "variable")
+names(correlations) <- c("variable", "pearson", "spearman")
+correlations_ordered <- correlations %>%
+  mutate(variable = variable, pearson = abs(pearson), spearman = abs(spearman)) %>%
+  filter(variable != "churn") %>%
+  arrange(desc(spearman))
+correlations_ordered
+```
+PROB REMOVE THIS
+```{r}
+model_name <- paste("R - method: pearson/spearman")
+subtitle <- paste("Top 15 Variables Ranked on Correlation to Churn")
+
+mplot_correlations <- function(var, imp, colours = NA, limit = 15, model_name = NA, subtitle = NA,
+                             save = FALSE, file_name = "viz_correlation.png", subdir = NA) {
+  
+  require(ggplot2)
+  require(gridExtra)
+  options(warn=-1)
+  
+  if (length(var) != length(imp)) {
+    message("The variables and importance values vectors should be the same length.")
+    stop(message(paste("Currently, there are",length(var),"variables and",length(imp),"importance values!")))
+  }
+  if (is.na(colours)) {
+    colours <- "deepskyblue" 
+  }
+  out <- data.frame(var = var, imp = imp, Type = colours)
+  if (length(var) < limit) {
+    limit <- length(var)
+  }
+  
+  output <- out[1:limit,]
+  
+  p <- ggplot(output, 
+              aes(x = reorder(var, imp), y = imp * 1, 
+                  label = round(1 * imp, 1))) + 
+    geom_col(aes(fill = Type), width = 0.1) +
+    geom_point(aes(colour = Type), size = 6) + 
+    coord_flip() + xlab('') + theme_minimal() +
+    ylab('Absolute Correlation') + 
+    geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white") +
+    labs(title = paste0("Variables Importances. (", limit, " / ", length(var), " plotted)"))
+  
+  if (length(unique(output$Type)) == 1) {
+    p <- p + geom_col(fill = colours, width = 0.2) +
+      geom_point(colour = colours, size = 6) + 
+      guides(fill = FALSE, colour = FALSE) + 
+      geom_text(hjust = 0.5, size = 2, inherit.aes = TRUE, colour = "white")
+  }
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  }  
+  if(save == TRUE) {
+    if (!is.na(subdir)) {
+      dir.create(file.path(getwd(), subdir))
+      file_name <- paste(subdir, file_name, sep="/")
+    }
+    p <- p + ggsave(file_name, width=7, height=6)
+  }
+  
+  return(p)
+  
+}
+
+mplot_correlations(correlations_ordered$variable,correlations_ordered$pearson, model_name=model_name, subtitle=subtitle)
+mplot_correlations(correlations_ordered$variable,correlations_ordered$spearman, model_name=model_name, subtitle=subtitle)
+```
+Using caret to remove co-linear variables
+```{r}
+library(caret)
+# correlations
+temp<- preProcess(x=tele_clean_rows, method = c("corr"))
+temp$method$remove
+removed <- temp$method$remove
+
+# nzv
+removed2 <- temp2$method$remove
+
+extra_set <- tele_clean_rows
+extra_set[,removed] <- NULL
+extra_set[,removed2] <- NULL
+```
+
+```{r}
+#install.packages("RWeka")
+library(RWeka)
+write.arff(tele_clean, file = "capstone.arff")
+```
+
+Weka - InfoGain
+```{r}
+# infogain top attributes
+extra_wekainfo <- InfoGainAttributeEval(churn ~ . , data = extra_set)
+extra_infogain <- as.data.frame(extra_wekainfo) %>%
+  mutate(variable = names(extra_set[,-8]), extra_wekainfo = extra_wekainfo) %>%
+  arrange(desc(extra_wekainfo))
+
+model_name <- paste("Weka - InfoGainAttributeEval")
+subtitle <- paste("Top 15 Variables Ranked on Importance")
+mplot_importance(extra_infogain$variable,extra_infogain$extra_wekainfo, model_name=model_name, subtitle=subtitle)
+```
+```{r}
+# i will keep all variables > 0.1 gain
+final_vars <- as.data.frame(extra_infogain) %>%
+  mutate(variable = names(extra_set[,-8]), extra_wekainfo = extra_wekainfo*100) %>%
+  filter(extra_wekainfo >0.1) %>%
+  arrange(desc(extra_wekainfo))
+
+final_vars
+```
+
+Feature Selection Models
+```{r}
+# using our chosen variables
+model_tele_clean <- tele_clean[,c(unlist(final_vars), "churn")]
+
+# splitting data
+index_train <- sample(1:nrow(extra_set), 2/3 * nrow(extra_set))
+final_training_set <- extra_set[index_train, ]
+final_test_set <- extra_set[-index_train, ]
+```
+R - Logistic
+```{r}
+set.seed(1)
+R_logistic_model <- glm(churn ~ ., family = "binomial", data = final_training_set)
+  predictions_all_R <- predict(R_logistic_model, newdata = final_test_set, type = "response")
+
+# Make a binary predictions-vector using a cut-off of 50%
+  pred_cutoff_50 <- ifelse(predictions_all_R > 0.5, 1, 0)
+  
+# Construct a confusion matrix
+  conf_matrix_50 <- table(final_test_set$churn, pred_cutoff_50)
+
+conf_matrix_50
+```
+```{r}
+mplot_roc(final_test_set$churn, predictions_all_R)daniels11
+```
+Weka - Logistic
+```{r}
+set.seed(2)
+# comparing models with full dataset
+weka_logistic_model <- Logistic(churn ~ ., data=final_training_set)
+  predictions_all_Weka <- predict(weka_logistic_model, newdata = final_test_set, type = "probability")
+  
+  pred_cutoff_501 <- ifelse(predictions_all_Weka[,2] > 0.5, 1, 0)
+  conf_matrix_501 <- table(final_test_set$churn, pred_cutoff_501)
+
+conf_matrix_501
+```
+```{r}
+mplot_roc(final_test_set$churn, predictions_all_Weka[,2])
+```
+Weka - logitBoost
+```{r}
+set.seed(2)
+Weka_boost_model <- LogitBoost(churn ~ ., data=final_training_set)
+
+predictions_all_boost <- predict(Weka_boost_model, newdata = final_test_set, type = "probability")
+pred_cutoff_502 <- ifelse(predictions_all_boost[,2] > 0.5, 1, 0)
+
+conf_matrix_502 <- table(final_test_set$churn, pred_cutoff_502)
+conf_matrix_502
+```
+```{r}
+mplot_roc(final_test_set$churn, predictions_all_boost[,2])
+```
+```{r}
+mplot_density <- function(tag, score, model_name = NA, subtitle = NA, 
+                          save = FALSE, file_name = "viz_distribution.png") {
+  require(ggplot2)
+  require(gridExtra)
+
+  if (length(tag) != length(score)) {
+    message("The tag and score vectors should be the same length.")
+    stop(message(paste("Currently, tag has",length(tag),"rows and score has",length(score))))
+  }
+
+  if (length(unique(tag)) != 2) {
+    stop("This function is for binary models. You should only have 2 unique values for the tag value!")
+  }
+  normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
+  out <- data.frame(tag = as.character(tag),
+                    score = as.numeric(score),
+                    norm_score = normFunc(as.numeric(score)))
+  
+  p1 <- ggplot(out) + theme_minimal() +
+    geom_density(aes(x = 100 * score, group = tag, fill = as.character(tag)), 
+                 alpha = 0.6, adjust = 0.25) + 
+    guides(fill = guide_legend(title="Tag")) + 
+    xlim(0, 100) + 
+    labs(title = "Score distribution for binary model",
+         y = "Density by tag", x = "Score")
+return(p1)
+}
+mplot_density(final_test_set$churn, predictions_all_R)
+```
+
+```{r}
+mplot_cuts <- function(score, splits = 10, subtitle = NA, model_name = NA, 
+                       save = FALSE, file_name = "viz_ncuts.png") {
+  
+  require(ggplot2)
+  
+  if (splits > 25) {
+    stop("You should try with less splits!")
+  }
+  
+  deciles <- quantile(score, 
+                      probs = seq((1/splits), 1, length = splits), 
+                      names = TRUE)
+  deciles <- data.frame(cbind(Deciles=row.names(as.data.frame(deciles)),
+                              Threshold=as.data.frame(deciles)))
+  
+  p <- ggplot(deciles, 
+              aes(x = reorder(Deciles, deciles), y = deciles * 100, 
+                  label = round(100 * deciles, 1))) + 
+    geom_col(fill="deepskyblue") + 
+    xlab('') + theme_minimal() + ylab('Score') + 
+    geom_text(vjust = 1.5, size = 3, inherit.aes = TRUE, colour = "white", check_overlap = TRUE) +
+    labs(title = paste("Cuts by score: using", splits, "equal-sized buckets"))
+  
+  if(!is.na(subtitle)) {
+    p <- p + labs(subtitle = subtitle)
+  } 
+  if(!is.na(model_name)) {
+    p <- p + labs(caption = model_name)
+  }
+  if (save == TRUE) {
+    p <- p + ggsave(file_name, width = 6, height = 6)
+  }
+  return(p)
+}
+
+mplot_cuts(predictions_all_R)
+```
+
+
+```{r}
+
+deciles <- quantile(predictions_all_R, 
+                      probs = seq((1/10), 1, length = 10), 
+                      names = TRUE)
+deciles <- data.frame(cbind(Deciles=row.names(as.data.frame(deciles)),
+                              Threshold=as.data.frame(deciles)))
+  
+p <- ggplot(deciles, 
+              aes(x = reorder(Deciles, deciles), y = deciles * 100, 
+                  label = round(100 * deciles, 1))) + 
+    geom_col(fill="deepskyblue") + 
+    xlab('') + theme_minimal() + ylab('Score') + 
+    geom_text(vjust = 1.5, size = 3, inherit.aes = TRUE, colour = "white", check_overlap = TRUE) +
+    labs(title = paste("Cuts by score: using", 10, "equal-sized buckets"))
+
+  
+require(ggplot2)
+require(dplyr)
+require(RColorBrewer)
+
+  df <- data.frame(final_test_set$churn, predictions_all_R)
+  npersplit <- round(nrow(df)/5)
+  names <- df %>%
+    mutate(quantile = ntile(predictions_all_R, 5)) %>% group_by(quantile) %>%
+    summarise(n = n(), 
+              max_score = round(100 * max(predictions_all_R), 1), 
+              min_score = round(100 * min(predictions_all_R), 1)) %>%
+    mutate(quantile_tag = paste0(quantile," (",min_score,"-",max_score,")"))
+  
+  df %>%
+    mutate(quantile = ntile(predictions_all_R, 5)) %>% 
+    group_by(quantile, final_test_set.churn) %>% tally() %>%
+    ungroup() %>% group_by(final_test_set.churn) %>% 
+    arrange(desc(quantile)) %>%
+    mutate(p = round(100*n/sum(n),2),
+           cum = cumsum(100*n/sum(n))) %>%
+    left_join(names, by = c("quantile")) %>%
+    ggplot(aes(x = as.character(final_test_set.churn), y = p, label = as.character(p),
+               fill = as.character(quantile_tag))) + theme_minimal() +
+    geom_col(position = "stack") +
+    geom_text(size = 3, position = position_stack(vjust = 0.5), check_overlap = TRUE) +
+    xlab("Tag") + ylab("Total Percentage by Tag") +
+    guides(fill = guide_legend(title=paste0("~",npersplit," p/split"))) +
+    labs(title = "Tag vs Score Splits Comparison") +
+    scale_fill_brewer(palette = "Spectral")
+
+```
+
+
+Loading Model (old)
+```{r}
+#install.packages("caret")
+#install.packages("pROC")
+#install.packages("e1071")
+library(caret)
+library(lattice)
+library(pROC)
+library(e1071)
+
+control <- trainControl(method="cv", number=10)
+metric <- "Accuracy"
+
+# splitting into test/train 75/25
+TeleTrainTest <- tele_clean[,c(unlist(final_vars), "churn")]
+training_split <- createDataPartition(tele_clean$churn, p = 0.75, list=FALSE)
+DstTrainModel <- TeleTrainTest[training_split,]
+DstTestModel <- TeleTrainTest[-training_split,]
+
+trainX <- DstTrainModel[,names(DstTrainModel) != "churn"]
+preProcValues <- preProcess(x = trainX,method = c("center", "scale"))
+preProcValues
+
+```
+
+All the different models (take 1+ day to run, image attached)
+```{r}
+# logistic regression
+set.seed(7)
+fit.glm <- train(churn ~ ., data=DstTrainModel, method="glm", metric=metric, trControl=control)
+
+
+
+# linear algorithms
+set.seed(7)
+fit.lda <- train(churn ~ ., data=DstTrainModel, method="lda", metric=metric, trControl=control)
+
+# CART
+set.seed(7)
+fit.cart <- train(churn ~ ., data=DstTrainModel, method="rpart", metric=metric, trControl=control)
+
+# kNN
+set.seed(7)
+fit.knn <- train(churn ~ ., data=DstTrainModel, method="knn", 
+                 metric=metric, trControl=control, preProcess = c("center","scale"), tuneLength = 5)
+
+# Random Forest
+set.seed(7)
+fit.rf <- train(churn ~ ., data=DstTrainModel, method="rf", metric=metric, trControl=control)
+
+# Gradient Boost Machine (GBM)
+set.seed(7)
+fit.gbm <- train(churn ~ ., data=DstTrainModel, method="gbm", 
+                 metric=metric, trControl=control, verbose=FALSE)
+```
+
+Compare Results
+```{r}
+results <- resamples(list(
+    glm=fit.glm, 
+    lda=fit.lda, 
+    cart=fit.cart,
+    gbm=fit.gbm
+))
+    #knn=fit.knn,
+    #rf=fit.rf,
+summary(results)
+# compare accuracy of models
+dotplot(results)
+
+
+AccCalc <- function(TestFit, name) {
+    # prediction 
+    DstTestModelClean <- DstTestModel
+    DstTestModelClean$churn <- NA
+    predictedval <- predict(TestFit, newdata=DstTestModelClean)
+    
+    # summarize results with confusion matrix
+    cm <- confusionMatrix(predictedval, DstTestModel$churn)
+    
+    # calculate accuracy of the model
+    Accuracy<-round(cm$overall[1],2)
+    acc <- as.data.frame(Accuracy)
+ 
+    roc_obj <- roc(DstTestModel$churn, as.numeric(predictedval))
+    acc$Auc <- auc(roc_obj)
+    
+    acc$FitName <- name
+    return(acc)
+}
+
+accAll <- AccCalc(fit.glm, "glm")
+accAll <- rbind(accAll, AccCalc(fit.lda, "lda"))
+accAll <- rbind(accAll, AccCalc(fit.cart, "cart"))
+#accAll <- rbind(accAll, AccCalc(fit.knn, "knn"))
+#accAll <- rbind(accAll, AccCalc(fit.rf, "rf"))
+accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
+rownames(accAll) <- c()
+arrange(accAll,desc(Accuracy))
+```
