@@ -290,7 +290,7 @@ final_set <- cbind(normalized[,-72], tele_clean_rows[,factors])
 # infogain top attributes
 churn_wekainfo <- InfoGainAttributeEval(churn ~ . , data = final_set)
 churn_infogain <- as.data.frame(churn_wekainfo) %>%
-  mutate(variable = names(final_set[,-73]), churn_wekainfo = churn_wekainfo*100) %>%
+  mutate(variable = names(final_set[,-37]), churn_wekainfo = churn_wekainfo*100) %>%
   arrange(desc(churn_wekainfo))
 
 churn_infogain
@@ -355,7 +355,7 @@ mplot_importance <- function(var, imp, colours = NA, limit = 15, model_name = NA
   
 }
 
-mplot_importance(extra_infogain$variable,extra_infogain$extra_wekainfo, model_name=model_name, subtitle=subtitle)
+mplot_importance(churn_infogain$variable,churn_infogain$churn_wekainfo, model_name=model_name, subtitle=subtitle)
 ```
 
 5.1 Dropping the identified variables

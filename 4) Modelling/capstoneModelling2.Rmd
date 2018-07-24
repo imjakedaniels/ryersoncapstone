@@ -114,6 +114,7 @@ Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
 Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix(positive='1')
 Weka_forest_conf_matrix_50
 
+
 ```
 ```{r}
 frame4<- mplot_roc(validation$churn, Weka_forest_predictions[,2])
@@ -245,6 +246,13 @@ print(final_model)
 final_predictions <- predict(final_model, validation$churn)
 confusionMatrix(final_predictions, validation$Class, positive='1')
 ```
+
+```{r}
+binom.test(7451, 7451+7667, p=0.5, alternative = "two.sided")
+mcnemar.test(table(basic_test_set$churn, basic_pred_cutoff),table(validation$churn, Weka_forest_pred_cutoff_50))
+write.arff(final_set, "final_set.arff")
+```
+
 
 Other caret models
 ```{r}
