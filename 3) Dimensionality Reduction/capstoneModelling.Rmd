@@ -273,12 +273,19 @@ correlations_ordered[1:15,]
 # bottom 5
 correlations_ordered[67:71,]
 ```
-3.2 Using caret to identify co-linear (highly correlated) variables
+3.2 Using caret to identify multicolinearity (highly correlated variables)
 ```{r}
 library(caret)
 caret_high_correlation<- preProcess(x=normalized, method = c("corr"))
 
 caret_high_correlation$method$remove
+```
+3.3 using rms to examine variance inflation and identify correlated variables
+```{r}
+install.packages("rms")
+library(rms)
+vif(normalized)
+# looking at variance inflation anything  > 10 is bad
 ```
 
 4.1 Using Weka's InfoGain on churn to examine impactful variables
@@ -290,7 +297,7 @@ final_set <- cbind(normalized[,-72], tele_clean_rows[,factors])
 # infogain top attributes
 churn_wekainfo <- InfoGainAttributeEval(churn ~ . , data = final_set)
 churn_infogain <- as.data.frame(churn_wekainfo) %>%
-  mutate(variable = names(final_set[,-37]), churn_wekainfo = churn_wekainfo*100) %>%
+  mutate(variable = names(final_set[,-73]), churn_wekainfo = churn_wekainfo*100) %>%
   arrange(desc(churn_wekainfo))
 
 churn_infogain
@@ -356,6 +363,27 @@ mplot_importance <- function(var, imp, colours = NA, limit = 15, model_name = NA
 }
 
 mplot_importance(churn_infogain$variable,churn_infogain$churn_wekainfo, model_name=model_name, subtitle=subtitle)
+```
+```{r}
+install.packages("Boruta")
+library(Boruta)
+# Decide if a variable is important or not using Boruta
+boruta_output <- Boruta(churn ~ ., data=final_set, doTrace=2)  # perform Boruta search
+# Confirmed 10 attributes: Humidity, Inversion_base_height, Inversion_temperature, Month, Pressure_gradient and 5 more.
+# Rejected 3 attributes: Day_of_month, Day_of_week, Wind_speed.
+boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
+print(boruta_signif)  # significant variables
+#=> [1] "Month"                 "ozone_reading"         "pressure_height"      
+#=> [4] "Humidity"              "Temperature_Sandburg"  "Temperature_ElMonte"  
+#=> [7] "Inversion_base_height" "Pressure_gradient"     "Inversion_temperature"
+#=> [10] "Visibility"
+plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance") 
+
+#blck_data_Mean, callfwdv_Mean, ethnic, forgntvl, kid0_2, +7, new_cell, kid11_15,kid16_17, drop_data_Mean
+#rejected 1 attribute: new_cell;
+#rejected 2 attributes: kid11_15, kid16_17;
+#rejected 1 attribute: drop_data_Mean;
+#rejected 1 attribute: income
 ```
 
 5.1 Dropping the identified variables

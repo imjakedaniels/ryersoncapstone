@@ -114,7 +114,8 @@ Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
 Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix(positive='1')
 Weka_forest_conf_matrix_50
 
-
+install.packages("RWeka")
+library(Rweka)
 ```
 ```{r}
 frame4<- mplot_roc(validation$churn, Weka_forest_predictions[,2])
