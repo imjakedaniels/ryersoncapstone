@@ -280,10 +280,7 @@ control = cforest_unbiased(mtry = 3))
 # Use the model to predict the evaluation.
 validation$prediction <- predict(x.model, newdata=validation)
 
-# Calculate the overall accuracy.
-validation$correct <- validation$prediction == validation$churn
-print(paste("% of predicted classifications correct", mean(validation$correct)))
- 
+
 # Extract the class probabilities.
 validation$probabilities <- 1- unlist(treeresponse(x.model,newdata=validation), use.names=F)[seq(1,nrow(validation)*2,2)]
 
@@ -291,13 +288,18 @@ validation$probabilities <- predict(Weka_forest_model, newdata = validation, typ
 # Plot the performance of the model applied to the evaluation set as
 # an ROC curve.
 require(ROCR)
-pred <- prediction(validation$probabilities, validation$churn)
+tele_clean$holdoutcome <- ifelse(tele_clean$holdoutpred > 0.5, 1,0)
+pred <- prediction(tele_clean$holdoutpred, tele_clean$churn)
 perf <- performance(pred,"tpr","fpr")
 plot(perf, main="ROC curve", colorize=T)
  
 # And then a lift chart
 perf <- performance(pred,"lift","rpp")
 plot(perf, main="lift curve", colorize=T)
+
+# Calculate the overall accuracy.
+tele_clean$correct <- tele_clean$holdoutcome == tele_clean$churn
+print(paste("% of predicted classifications correct", mean(tele_clean$correct)))
 ```
 
 
@@ -311,24 +313,16 @@ A heavy user customer might spend $100 per month, which would result in
 an LVC of $4530. We use the values $1500, $2500, and $4000 as
 reasonable numbers for our illustrative calculations.
 
-
-
-
-The first term within the brackets reflects profit contribution among the βγ fraction of
-contacted customers who are would-be churners and decide based on the incentive to stay
+The first term within the brackets reflects profit contribution among the βγ fraction ofcontacted customers who are would-be churners and decide based on the incentive to stay
 with the company. The firm retrieves their lifetime value at a cost of c+δ. 
 
 The second term within the brackets reflects profit contribution among the β(1-γ) fraction of
 contacted would-be churners who do not accept the offer and leave the firm. The loss
 from these customers is c, since they do not accept the offer. The third term within the
-brackets reflects profit contribution among the (1-β) fraction of contacted customers who
-are not would-be churners. We assume these customers accept the offer and cost the
-company c+δ. These customers represent the wasted money for the firm. They were not
-going to churn yet the firm spent incentive money on them.
+brackets reflects profit contribution among the (1-β) fraction of contacted customers who are not would-be churners. We assume these customers accept the offer and cost the company c+δ. These customers represent the wasted money for the firm. They were not going to churn yet the firm spent incentive money on them.
 
 Note this formulation takes as given the percentage of the customer base to be
-contacted (α). Implicitly, we are only concerned with the “false positives” represented
-by 1-β. 
+contacted (α). Implicitly, we are only concerned with the “false positives” represented by 1-β. 
 
 In general, the firm might also be concerned with the percentage of customers
 not contacted (1-α) who are churners and might have been retained (the “false
@@ -420,6 +414,7 @@ piece.
 β0 = .018. The average monthly churn rate for the customers in our data
 is 1.80%, so we use this as the baseline churn level. Note that
 1.8% monthly churn translates to 1-.98212 = 20% annual churn.
+
 LVC = $1500, $2500, $4000. Monthly revenues per customer for the
 typical telecommunications company are in the $40-$60 range. If
 we use $40, a monthly churn rate of 1.8%, and a 5% annual
@@ -505,6 +500,7 @@ among the top 10% of customers, whereas Gini measures lift along the full contin
 is plausible that a given method might be very good at identifying the top candidates for
 churn, but does not do as well on identifying the mid-range candidates. If that is the case,
 Gini and λ will be relatively uncorrelated. 
+
 ```{r}
 Prove statistical model difference with A/B test 
 ggplot(final_set, aes(x=churn, y = something prob auc of all the folds)) +
@@ -532,6 +528,8 @@ n number of ovs
 f is effect size
 ```
 
+
+Linear Regression to predict future revenue
 ```{r}
 lm(avgmin ~ avgrev, data = tele_clean_rows)
 R-Squared = how much of the variation is explains this month, as high as possible
@@ -540,30 +538,55 @@ F-Test whether R2 = 0, pvalue > 0.05 so our model rejects the null hypoth R squa
 
 #the effect of the mean avgmin this month is statistifcally significant. A one-unit increase in the mean avgrev leads to a <coefficient> increase in the total avgrev this month.
 
-lm(totcalls ~ avgrev, data = final_training_set)
-
+yes <- lm(totcalls ~ avgrev, data = tele_clean)
+summary(yes)
 lm(avgqty ~ avgrev, data = final_training_set)
-
 lm(change_mou ~ avgrev, data = final_training_set) 
 
 # see which variables lead to increase/decrease revenue
-lm(avgrev ~ . + . +.,data = final_training_set)
+tele_clean$Customer_ID <- NULL
+
+nums <- unlist(lapply(tele_clean, is.numeric))
+numeric_tele <- tele_clean[,nums]
+
+index <- sample(1:nrow(numeric_tele), 3/4 * nrow(numeric_tele))
+training <-numeric_tele[index,]
+test <- numeric_tele[-index,]
+
+
+lm_model <- lm(avgrev ~ .,data=training)
+summary(yes)
+yes$coefficients
 
 # predict next month's running avg rev
-predRev <- predict(lm_model, newdata = validation)
-mean(predRev)
+test$predRev <- predict(lm_model, newdata = test)
+test$churn <- tele_clean[-index,]$churn
+
+test %>%
+  filter(churn == 0) %>%
+  summarize(non_churnPRED = sum(predRev), non_churnACTUAL = sum(avgrev))
+
+test %>%
+  filter(churn == 1) %>%
+  summarize(actual_churn = sum(predRev),actual_churnACTUAL = sum(avgrev))
+sum(test$avgrev)
 ```
 
 ```{r}
 library(MASS)
 # examine coefficients
-model <- glm()
+index <- sample(1:nrow(tele_clean), 3/4 * nrow(tele_clean))
+training <-tele_clean[index,]
+test <- tele_clean[-index,]
+
+model <- glm(churn ~ ., data = training, family = "binomial")
 coef(model) %>% exp() %>% round(2)
 
 # ON EACH MODEL
-stepAIC(model, trace = 0)
+AIC <-stepAIC(model, trace = 0)
 as.formula(summary(model)$call)
 
+#install.packages("descr")
 library(descr)
 LogRegR2(model)
 # McFadden
@@ -572,17 +595,16 @@ LogRegR2(model)
 >0.2 is reasonable, 0.4 is good 0.5 is very good
 Make a table for charts
 
-churndata$predNew <- predict(model, type = "response")
-data %>% select(churn, predNew) %>% tail()
+test$predNew <- predict(model, newdata = test, type = "response")
 
-
+#install.packages("SDMTools")
 library(SDMTools)
-confMatrixNew <- confusion.matrix(churn, predictions, thresold = 0.5)
+confMatrixNew <- confusion.matrix(test$churn, test$predNew, threshold = 0.5)
 
 True Negative (correct to return), False Negative
 False-Postive,                     True Positive (correct to leave)
 
-sum(diag(confMatrixNew)) / sum(confMatrixNew)
+<- sum(diag(confMatrixNew)) / sum(confMatrixNew)
 
 #find optimal threshold
 Payoff = (customer returns because we sent $250 coupon) * True Negative - (customer predicted to to leave but returned ~$1000) * false Negative
@@ -591,10 +613,12 @@ Threshold   Accuracy  Payoff
 0.5            0.8      60975
 0.4            0.81     62000
 
-payoffMatrix$threshold <- data.frame(threshold = seq(from = 0.1, to = 0.5, by 0.1), payoff = NA)
-for(i in 1:lnegth(payoffMatrix$threshold)) {
-  confMatrix <- confusion.matrix(validation$churn, prediction, threshold = payoffMatrix$threshold[i])
-  payoffMatrix$payoff[i] <- confMatrix[1,1]* 250 + confMatrix[1,2] *(-1000)
+payoffMatrix <- as.data.frame()
+
+payoffMatrix <- data.frame(threshold = seq(from = 0.4, to = 0.6, by= 0.01), payoff = NA)
+for(i in 1:length(payoffMatrix$threshold)) {
+  confMatrix <- confusion.matrix(test$churn, test$predNew, threshold = payoffMatrix$threshold[i])
+  payoffMatrix$payoff[i] <- confMatrix[1,1]* 50 + confMatrix[1,2] *(-50.5)
 }
 payoffMatrix
 
@@ -602,16 +626,39 @@ payoffMatrix
 Cross validation
 set.seed(1)
 
-create training, split
-model train
-predict test
+#####CROSS FOLD
+install.packages("cvTools")
+library(cvTools)
+k=2
+folds <- cvFolds(NROW(tele_clean), K=k)
+tele_clean$holdoutpred <- rep(0,nrow(tele_clean))
+tele_clean$fold <- rep(0,nrow(tele_clean))
+
+for(i in 1:k){
+  train <- tele_clean[folds$subsets[folds$which != i], ]
+  validation <- tele_clean[folds$subsets[folds$which == i], ]
+  
+  newglm<- glm(churn~.,data=train,family="binomial")
+  newpred <- predict(newglm, newdata=validation)
+  tele_clean[folds$subsets[folds$which == i], ]$holdoutpred <- newpred
+  tele_clean[folds$subsets[folds$which == i], ]$fold <- i
+}
+tele_clean$holdoutpred
+
+ifelse(tele_clean$holdoutpred > 0.5, 1, 0)
+
+
+tele_clean$holdoutpred
+
+
 
 #cross validate
-split into 4 sets, 1 will be test - use 3 for training and 1 for test
+
+split into 10 sets, 1 will be test - use 10 for training and 1 for test
 
 library(boot)
 Acc03 <- function(r, pi=0){
-  cm <- confuision.matrix(r,pi,threshol=0.3)
+  cm <- confusion.matrix(r,pi,threshol=0.5)
   acc <- sum(diag(cm)) / sum(cm)
   return(acc)
 }
@@ -622,6 +669,23 @@ cv.glm(churnData, model, cost = Acc03, K = 6)$delta[1]
 
 #INSERT PREDICTION INTO FINAL SET
 
+```
+
+```{r}
+test$predNew <- predict(model, newdata = test, type = "response")
+install.packages("ROCR")
+require(ROCR)
+pred <- prediction(test$predNew, test$churn)
+perf <- performance(pred, "tpr","fpr")
+plot(perf, main="ROC CURVE", colorize = T)
+
+perf <- performance(pred, "lift", "rpp")
+plot(perf, main="ROC CURVE", colorize = T)
+
+liftvalues <- perf@y.values
+liftvalues<-as.data.frame(liftvalues)
+mean(liftvalues[-1,])
+avglift = 1.18
 ```
 
 ```{r]}
