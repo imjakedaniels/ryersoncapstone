@@ -49,9 +49,6 @@ basic_predictions <- predict(basic_model, newdata = basic_test_set, type = "resp
 # Construct a confusion matrix
   basic_conf_matrix <- table(basic_test_set$churn, basic_pred_cutoff) %>% confusionMatrix(positive='1')
 basic_conf_matrix
-
-# Sensitivity = True Positive Rate
-# Specificity = False Positive Rate
 ```
 Visualizing
 ```{r}
@@ -143,7 +140,7 @@ tele_clean_rows <- tele_clean[which(!is.na(tele_clean$drop_vce_Mean)),]
 2.1 Filter Variables
 Normalizing then identifying low variance attributes
 ```{r}
-# normalizing function with z-scores
+# normalizing function to z-scores
 normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
 
 # pulling all numerics out of set
@@ -221,8 +218,9 @@ ggplot(aes(x=value)) +
 ```
 My Selections of Low Variance Variables to drop based on observations
 ```{r}
-# my list
+# my list from observation
 low_variance <- c("datovr_Mean", "roam_Mean", "comp_data_Mean", "mou_compdata_Mean", "peak_data_Mean", "mou_peak_data_Mean", "opk_data_Mean", "mou_opk_data_Mean", "callfwdv_Mean", "drop_data_Mean", "unan_data_Mean", "plcd_data_Mean", "recv_sms_Mean")
+low_variance
 ```
 2.2 Near-Zero Variance processing with Caret
 ```{r}
@@ -231,9 +229,6 @@ caret_low_variance<- preProcess(x=normalized, method = c("nzv"))
 
 # examining the list of variables it dropped
 caret_low_variance$method$remove
-
-# showing my list
-low_variance
 ```
 
 3.1 Correlations
@@ -281,15 +276,6 @@ caret_high_correlation<- preProcess(x=normalized, method = c("corr"))
 
 caret_high_correlation$method$remove
 ```
-3.3 using rms to examine variance inflation and identify correlated variables
-```{r}
-#install.packages("rms")
-library(rms)
-vif(basic_model)
-# looking at variance inflation from variables produced by the model anything  near 10 is bad, tracking all greater than 8.
-rms_vars <- c("owylis_vce_Mean", "peak_vce_Mean", "unan_vce_Mean")
-```
-
 4.1 Using Weka's InfoGain on churn to examine impactful variables
 ```{r}
 # adding factors back in to normalzed set 
@@ -372,12 +358,13 @@ mplot_importance(churn_infogain$variable,churn_infogain$churn_wekainfo, model_na
 #install.packages("Boruta")
 library(Boruta)
 # Decide if a variable is important or not using Boruta
-boruta_output <- Boruta(churn ~ ., data=final_set, doTrace=2)  # perform Boruta search
+
+#    boruta_output <- Boruta(churn ~ ., data=final_set, doTrace=2)  # perform Boruta search
 print(boruta_output$finalDecision)  # significant/tentative/rejectd variables
 ```
 5.2 Visualize
 ```{r}
-plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance with Boruta") 
+# plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance with Boruta") 
 ```
 
 6.1 Dropping the identified variables
@@ -406,26 +393,27 @@ removed3
 ```{r}
 # making final model
 final_set[,removed1] <- NULL
-
 final_set[,removed2] <- NULL
-
 final_set[,removed3] <- NULL
 ```
 
-
+dropped avg,avg3,adj for high correlation and kept avg6,tot,change
 ```{r}
 # variables to remove from high corr - 21 variables
-removed5 <- caret_high_correlation$method$remove
 nums <- unlist(lapply(final_set, is.numeric)) 
 caret_high_correlation<- preProcess(x=final_set[,nums], method = c("corr"))
 
+removed4 <- caret_high_correlation$method$remove
 caret_high_correlation$method$remove
-```
-```{r}
-final_set[,removed5] <- NULL
+
+removed5 <- caret_high_correlation$method$ignore
+caret_high_correlation$method$ignore
 ```
 
-# dropped avg,avg3,adj for high correlation and kept avg6,tot,change
+```{r}
+final_set[,removed4] <- NULL
+final_set[,removed5] <- NULL
+```
 
 ```{r}
 write_csv(final_set, "final_set.csv")

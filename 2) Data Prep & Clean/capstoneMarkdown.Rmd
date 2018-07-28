@@ -4,7 +4,7 @@ author: "Jake Daniels"
 date: "July 9, 2018"
 output: html_document
 ---
-
+# Part 2 - Cleaning and NA
 Cleaning & Visual Packages Required
 ```{r, echo=FALSE}
 #install.packages("tidyverse")
@@ -17,6 +17,7 @@ library(plotly)
 library(reshape2)
 ```
 
+## OPTIONAL
 Loading in Data from AWS MySQL
 ```{r, echo=FALSE}
 #install.packages("DBI")
@@ -60,6 +61,10 @@ tele_clean <- inner_join(Billing, Customer) %>%
   inner_join(Operations) %>%
   inner_join(Product) %>%
   inner_join(Service)
+```
+## Load tele.csv manually to skip the AWS setup
+```{r}
+# tele_clean <- read_csv("~Downloads/tele.csv")
 ```
 
 Univariate Cleaning NA/OUTLIER for Models

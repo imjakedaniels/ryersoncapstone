@@ -30,7 +30,7 @@ R_conf_matrix_50
 ```{r}
 model_name <- paste("glm(churn ~ ., family = 'binomial', data = final_training_set)")
 subtitle <- paste("Logistic Regression in R")  
-mplot_roc(validation$churn, R_predictions)
+mplot_roc(validation$churn, R_predictions, model_name = model_name, subtitle = subtitle)
 ```
 Caret - Logistic 10 Fold
 ```{r}
@@ -52,7 +52,7 @@ fit.glm_conf_matrix_50
 model_name <- paste("train(churn~., data=final_training_set, method='glm', metric='Accuracy', trControl=control)")
 subtitle <- paste("10-Fold Logistic Regression with Caret")  
 fit.glm_predictions <- predict(fit.glm, newdata=validation, type = "prob")
-mplot_roc(validation$churn, fit.glm_predictions[,2])
+mplot_roc(validation$churn, fit.glm_predictions[,2], model_name = model_name, subtitle = subtitle)
 ```
 Weka - logitBoost
 ```{r}
@@ -67,7 +67,7 @@ Weka_boost_conf_matrix_50
 ```{r}
 model_name <- paste("LogitBoost(churn ~ ., data=final_training_set)")
 subtitle <- paste("LogitBoost with Weka")  
-mplot_roc(validation$churn, Weka_boost_predictions[,1])
+mplot_roc(validation$churn, Weka_boost_predictions[,1], model_name = model_name, subtitle = subtitle)
 ```
 Weka - Naive Bayes
 ```{r}
@@ -84,7 +84,7 @@ Weka_NB_conf_matrix_503
 ```{r}
 model_name <- paste("NB(churn ~ ., data=final_training_set)")
 subtitle <- paste("Naive Bayes with Weka")  
-mplot_roc(validation$churn, Weka_NB_predictions[,2])
+mplot_roc(validation$churn, Weka_NB_predictions[,2], model_name = model_name, subtitle = subtitle)
 ```
 Weka - Random Forest
 ```{r}
@@ -99,62 +99,14 @@ Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
 Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix(positive='1')
 Weka_forest_conf_matrix_50
 ```
+Visualize AUC
 ```{r}
-frame4<- mplot_roc(validation$churn, Weka_forest_predictions[,2])
+model_name <- paste("WekaForest(churn ~ ., data=final_training_set)")
+subtitle <- paste("Random Forest with Weka") 
+frame4<- mplot_roc(validation$churn, Weka_forest_predictions[,2], model_name = model_name, subtitle= subtitle)
 frame4
 ```
-
-
-```{r}
-install.packages("cvTools")
-library(cvTools)
-
-#you may need to restart R and increase your memory limit with: options(java.parameters = "-Xmx2048m")
-k=10
-folds <- cvFolds(NROW(final_set), K=k)
-final_set$holdoutpred <- rep(0,nrow(final_set))
-final_set$fold <- rep(0,nrow(final_set))
-
-for(i in 1:k){
-  train <- final_set[folds$subsets[folds$which != i], ]
-  validation <- final_set[folds$subsets[folds$which == i], ]
-  
-Weka_forest_model <- WekaForest(churn ~ ., data=train)
-  newpred <- predict(Weka_forest_model, newdata=validation, type = "probability")
-  final_set[folds$subsets[folds$which == i], ]$holdoutpred <- newpred[,2]
-  final_set[folds$subsets[folds$which == i], ]$fold <- i
-}
-final_set$holdoutpred
-
-final_set$actualpred <- ifelse(final_set$holdoutpred > 0.5, 1,0)
-Weka_forest_conf_matrix_51 <- table(final_set$churn, final_set$actualpred) %>% confusionMatrix(positive='1')
-Weka_forest_conf_matrix_51
-
-
-#install.packages("SDMTools")
-library(SDMTools)
-
-payoffMatrix <- data.frame(threshold = seq(from = 0.4, to = 0.6, by= 0.01), payoff = NA)
-for(i in 1:length(payoffMatrix$threshold)) {
-  confMatrix <- confusion.matrix(final_set$churn, final_set$holdoutpred, threshold = payoffMatrix$threshold[i])
-  payoffMatrix$payoff[i] <- confMatrix[2,2]* 50 + confMatrix[2,1] *(-50.5)
-}
-payoffMatrix
-```
-
-```{r}
-mplot_roc(final_set$churn, final_set$holdoutpred)
-```
-```{r}
-#install.packages("ROCR")
-library(ROCR)
-
-pred <- prediction(final_set$holdoutpred, final_set$churn) 
-perf <- performance(pred,"lift","rpp")
-plot(perf, main="lift curve", colorize=T)
-```
-
-
+Visualize Density
 ```{r}
 mplot_density <- function(tag, score, model_name = NA, subtitle = NA, 
                           save = FALSE, file_name = "viz_distribution.png") {
@@ -187,7 +139,7 @@ return(p1)
 frame1 <- mplot_density(final_set$churn, final_set$holdoutpred)
 frame1
 ```
-
+Visualizie Bins
 ```{r}
 mplot_cuts <- function(score, splits = 10, subtitle = NA, model_name = NA, 
                        save = FALSE, file_name = "viz_ncuts.png") {
@@ -227,8 +179,7 @@ mplot_cuts <- function(score, splits = 10, subtitle = NA, model_name = NA,
 frame3<- mplot_cuts(Weka_forest_predictions[,2])
 frame3
 ```
-
-
+Visualize Distribution
 ```{r}
 library(RColorBrewer)
 
@@ -260,7 +211,7 @@ library(RColorBrewer)
   
   frame2
 ```
-
+Full Visual
 ```{r}
 grid.arrange(
       frame1, frame2, frame4, frame3,
@@ -268,6 +219,46 @@ grid.arrange(
       layout_matrix = rbind(c(1,2), c(1,2), c(1,3), c(4,3)))
 ```
 
+Calculate Lift
+```{r}
+#install.packages("ROCR")
+library(ROCR)
+
+pred <- prediction(Weka_forest_predictions[,2], validation$churn) 
+perf <- performance(pred,"lift","rpp")
+plot(perf, main="lift curve", colorize=T)
+```
+
+Highest Payoff Cutoff
+```{r}
+#install.packages("SDMTools")
+library(SDMTools)
+
+payoffMatrix <- data.frame(threshold = seq(from = 0.4, to = 0.6, by= 0.01), payoff = NA)
+for(i in 1:length(payoffMatrix$threshold)) {
+  confMatrix <- confusion.matrix(final_set$churn, final_set$holdoutpred, threshold = payoffMatrix$threshold[i])
+  payoffMatrix$payoff[i] <- confMatrix[2,2]* 50 + confMatrix[2,1] *(-50.5)
+}
+payoffMatrix
+```
+
+Staistical Significance
+```{r}
+t.test(x=c(66.2,65.45,66.7), data = tele_clean, alternative = "greater", mu =62)
+
+
+
+binom.test(7451, 7451+7667, p=0.5, alternative = "two.sided")
+mcnemar.test(table(basic_test_set$churn, basic_pred_cutoff),table(validation$churn, Weka_forest_pred_cutoff_50))
+write.arff(final_set, "final_set.arff")
+```
+Evaluating Model Value
+```{r}
+Gain
+
+```
+
+Save Model
 ```{r}
 # save the model to disk
 saveRDS(Weka_forest_model, "./Weka_forest_model.rds")
@@ -280,15 +271,8 @@ final_predictions <- predict(final_model, validation$churn)
 confusionMatrix(final_predictions, validation$Class, positive='1')
 ```
 
-```{r}
-t.test(x=c(66.2,65.45,66.7), data = tele_clean, alternative = "greater", mu =62)
 
 
-
-binom.test(7451, 7451+7667, p=0.5, alternative = "two.sided")
-mcnemar.test(table(basic_test_set$churn, basic_pred_cutoff),table(validation$churn, Weka_forest_pred_cutoff_50))
-write.arff(final_set, "final_set.arff")
-```
 
 
 Other caret models
@@ -360,3 +344,37 @@ accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
 rownames(accAll) <- c()
 arrange(accAll,desc(Accuracy))
 ```
+```{r}
+
+
+```{r}
+#install.packages("cvTools")
+library(cvTools)
+
+#you may need to restart R and run these lines first to increase your memory limit: 
+# library(rJava) 
+# options(java.parameters = "-Xmx2048m")
+
+k=4
+folds <- cvFolds(NROW(final_set), K=k)
+final_set$holdoutpred <- rep(0,nrow(final_set))
+final_set$fold <- rep(0,nrow(final_set))
+
+for(i in 1:k){
+  train <- final_set[folds$subsets[folds$which != i], ]
+  validation <- final_set[folds$subsets[folds$which == i], ]
+  
+Weka_forest_model <- WekaForest(churn ~ ., data=train)
+  newpred <- predict(Weka_forest_model, newdata=validation, type = "probability")
+  final_set[folds$subsets[folds$which == i], ]$holdoutpred <- newpred[,2]
+  final_set[folds$subsets[folds$which == i], ]$fold <- i
+}
+final_set$holdoutpred
+
+final_set$actualpred <- ifelse(final_set$holdoutpred > 0.5, 1,0)
+Weka_forest_conf_matrix_51 <- table(final_set$churn, final_set$actualpred) %>% confusionMatrix(positive='1')
+Weka_forest_conf_matrix_51
+
+
+```
+
