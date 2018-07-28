@@ -1,5 +1,5 @@
 ## @knitr part1
-tele <- read_csv("~/Downloads/Telecom_customer churn.csv")
+tele <- read_csv("C:/Users/Jake/Downloads/Telecom_customer churn.csv")
 
 Billing[which(is.na(tele$rev_Mean)),]$rev_Mean <- NA
 Billing[which(is.na(tele$totmrc_Mean)),]$totmrc_Mean <- NA

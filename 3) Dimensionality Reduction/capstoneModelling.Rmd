@@ -14,10 +14,9 @@ Pre-feature selection model
 #install.packages("caret") - for preProcess
 #install.packages("e1071") - for confusionMatrix
 #install.packages("pROC") - for ROC
-#install.packages("RWeka") - for RWeka
+#install.packages("RWeka") - for Weka Models
 library(caret)
 library(e1071)
-library(lattice) # might not need cuz caret autoloads
 library(pROC)
 library(RWeka)
 ```
@@ -48,7 +47,7 @@ basic_predictions <- predict(basic_model, newdata = basic_test_set, type = "resp
   basic_pred_cutoff <- ifelse(basic_predictions > 0.5, 1, 0)
 
 # Construct a confusion matrix
-  basic_conf_matrix <- table(basic_test_set$churn, basic_pred_cutoff) %>% confusionMatrix()
+  basic_conf_matrix <- table(basic_test_set$churn, basic_pred_cutoff) %>% confusionMatrix(positive='1')
 basic_conf_matrix
 
 # Sensitivity = True Positive Rate
@@ -112,7 +111,7 @@ save = FALSE, file_name = "viz_roc.png") {
 
 model_name <- paste("glm(churn ~ ., family = 'binomial', data = basic_training_set)")
 subtitle <- paste("Logistic Regression in R - ALL Variables")  
-mplot_roc(basic_test_set$churn, basic_predictions, model_name = model_name, subtitle = subtitle)
+mplot_roc(basic_test_set$churn, basic_predictions, model_name = model_name, subtitle = subtitle,save = F, file_name = "basic_roc.png")
 ```
 # Dimensionality Reduction 
 
@@ -120,12 +119,13 @@ mplot_roc(basic_test_set$churn, basic_predictions, model_name = model_name, subt
 
 Determining Outliers - beyond 99 percentile of confidence
 ```{r}
+#install.packages("outliers")
 library(outliers)
 
-rows_chisq <- scores(tele_clean,type="chisq", prob=0.999) %>%
+rows_chisq <- scores(tele_clean,type="chisq", prob=0.99) %>%
   summarise_all(funs(sum)) 
 
-rows_zscore <- scores(tele_clean,type="z", prob=0.999) %>%
+rows_zscore <- scores(tele_clean,type="z", prob=0.99) %>%
   summarise_all(funs(sum))
 
 # table for comparison
@@ -134,8 +134,9 @@ rows_comparison<-rbind(rows_chisq, rows_zscore)
 
 rows_comparison
 
+remove_rows_zscore <- scores(tele_clean,type="z", prob=0.99)
 # choosing z-score because I will normalize my data in z-scores for modelling
-tele_clean[which(rowSums(rows_zscore, na.rm = T) >=5),] <- NA
+tele_clean[which(rowSums(remove_rows_zscore, na.rm = T) >=2),] <- NA
 tele_clean_rows <- tele_clean[which(!is.na(tele_clean$drop_vce_Mean)),]
 ```
 
@@ -147,6 +148,7 @@ normFunc <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
 
 # pulling all numerics out of set
 nums <- unlist(lapply(tele_clean_rows, is.numeric)) 
+
 # applying formula
 normalized <- sapply(tele_clean_rows[,nums], normFunc) %>% as.data.frame()
 ```
@@ -213,7 +215,6 @@ ggplot(aes(x=value)) +
   stat_ecdf() +
   facet_wrap(~variable, scales = "free") +
   theme_bw()
-#blck_data_Mean
 #unan_data_Mean
 #plcd_data_Mean
 #recv_sms_Mean
@@ -221,7 +222,7 @@ ggplot(aes(x=value)) +
 My Selections of Low Variance Variables to drop based on observations
 ```{r}
 # my list
-low_variance <- c("datovr_Mean", "roam_Mean", "comp_data_Mean", "mou_compdata_Mean", "peak_data_Mean", "mou_peak_data_Mean", "opk_data_Mean", "mou_opk_data_Mean", "callfwdv_Mean", "drop_data_Mean", "blck_data_Mean", "unan_data_Mean", "plcd_data_Mean", "recv_sms_Mean")
+low_variance <- c("datovr_Mean", "roam_Mean", "comp_data_Mean", "mou_compdata_Mean", "peak_data_Mean", "mou_peak_data_Mean", "opk_data_Mean", "mou_opk_data_Mean", "callfwdv_Mean", "drop_data_Mean", "unan_data_Mean", "plcd_data_Mean", "recv_sms_Mean")
 ```
 2.2 Near-Zero Variance processing with Caret
 ```{r}
@@ -282,10 +283,11 @@ caret_high_correlation$method$remove
 ```
 3.3 using rms to examine variance inflation and identify correlated variables
 ```{r}
-install.packages("rms")
+#install.packages("rms")
 library(rms)
-vif(normalized)
-# looking at variance inflation anything  > 10 is bad
+vif(basic_model)
+# looking at variance inflation from variables produced by the model anything  near 10 is bad, tracking all greater than 8.
+rms_vars <- c("owylis_vce_Mean", "peak_vce_Mean", "unan_vce_Mean")
 ```
 
 4.1 Using Weka's InfoGain on churn to examine impactful variables
@@ -297,10 +299,11 @@ final_set <- cbind(normalized[,-72], tele_clean_rows[,factors])
 # infogain top attributes
 churn_wekainfo <- InfoGainAttributeEval(churn ~ . , data = final_set)
 churn_infogain <- as.data.frame(churn_wekainfo) %>%
-  mutate(variable = names(final_set[,-73]), churn_wekainfo = churn_wekainfo*100) %>%
+  mutate(variable = names(final_set[,-73]), churn_wekainfo = churn_wekainfo) %>%
   arrange(desc(churn_wekainfo))
 
-churn_infogain
+head(churn_infogain,5)
+tail(churn_infogain,15)
 ```
 
 4.2 Visualizing top results
@@ -362,49 +365,67 @@ mplot_importance <- function(var, imp, colours = NA, limit = 15, model_name = NA
   
 }
 
-mplot_importance(churn_infogain$variable,churn_infogain$churn_wekainfo, model_name=model_name, subtitle=subtitle)
+mplot_importance(churn_infogain$variable,churn_infogain$churn_wekainfo, model_name=model_name, subtitle=subtitle, save = F, file_name = "weka_infogain_importance.png")
 ```
+5.1 Boruta Permutation Tree - WARNING VERY LONG - 48+ hours
 ```{r}
-install.packages("Boruta")
+#install.packages("Boruta")
 library(Boruta)
 # Decide if a variable is important or not using Boruta
 boruta_output <- Boruta(churn ~ ., data=final_set, doTrace=2)  # perform Boruta search
-# Confirmed 10 attributes: Humidity, Inversion_base_height, Inversion_temperature, Month, Pressure_gradient and 5 more.
-# Rejected 3 attributes: Day_of_month, Day_of_week, Wind_speed.
-boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
-print(boruta_signif)  # significant variables
-#=> [1] "Month"                 "ozone_reading"         "pressure_height"      
-#=> [4] "Humidity"              "Temperature_Sandburg"  "Temperature_ElMonte"  
-#=> [7] "Inversion_base_height" "Pressure_gradient"     "Inversion_temperature"
-#=> [10] "Visibility"
-plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance") 
-
-#blck_data_Mean, callfwdv_Mean, ethnic, forgntvl, kid0_2, +7, new_cell, kid11_15,kid16_17, drop_data_Mean
-#rejected 1 attribute: new_cell;
-#rejected 2 attributes: kid11_15, kid16_17;
-#rejected 1 attribute: drop_data_Mean;
-#rejected 1 attribute: income
+print(boruta_output$finalDecision)  # significant/tentative/rejectd variables
+```
+5.2 Visualize
+```{r}
+plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance with Boruta") 
 ```
 
-5.1 Dropping the identified variables
+6.1 Dropping the identified variables
+
 ```{r}
-# variables to remove from high corr - 21 variables
-removed <- caret_high_correlation$method$remove
+# variables to remove from low variance, choosing mine - 13 variables
+removed1 <- low_variance
+removed1
+```
 
-# variables to remove from low variance -21 variables
-removed2 <- caret_low_variance$method$remove
-
-# variables to remove from low infogain, arbiturarily chose 0.02 - 18 variables
-removed3 <- churn_infogain %>%
-  filter(churn_wekainfo <0.02) %>%
+Differences between Importance moedels
+```{r}
+# variables to remove from low infogain, arbiturarily chose 0.0002 - 20 variables
+removed2 <- churn_infogain %>%
+  filter(churn_wekainfo <0.0002) %>%
   select(variable) %>%
   unlist()
+removed2
 
+# varaibles to remove from Boruta permuatation importance - 17 variables
+removed3 <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% "Rejected"]) 
+removed3
+# inconsistencies: peak_data_Mean, mou_peak_data_Mean, avgmou, avgqty, avgrev, drop_data_Mean
+```
+
+```{r}
 # making final model
-final_set[,removed] <- NULL
+final_set[,removed1] <- NULL
+
 final_set[,removed2] <- NULL
+
 final_set[,removed3] <- NULL
 ```
+
+
+```{r}
+# variables to remove from high corr - 21 variables
+removed5 <- caret_high_correlation$method$remove
+nums <- unlist(lapply(final_set, is.numeric)) 
+caret_high_correlation<- preProcess(x=final_set[,nums], method = c("corr"))
+
+caret_high_correlation$method$remove
+```
+```{r}
+final_set[,removed5] <- NULL
+```
+
+# dropped avg,avg3,adj for high correlation and kept avg6,tot,change
 
 ```{r}
 write_csv(final_set, "final_set.csv")

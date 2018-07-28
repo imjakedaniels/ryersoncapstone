@@ -71,6 +71,7 @@ mplot_roc(validation$churn, Weka_boost_predictions[,1])
 ```
 Weka - Naive Bayes
 ```{r}
+set.seed(1)
 NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
 weka_NB_model <- NB(churn ~ ., data=final_training_set)
 
@@ -85,25 +86,9 @@ model_name <- paste("NB(churn ~ ., data=final_training_set)")
 subtitle <- paste("Naive Bayes with Weka")  
 mplot_roc(validation$churn, Weka_NB_predictions[,2])
 ```
-
-```{r}
-# NEURAL NETWORK
-MLP <- make_Weka_classifier('weka/classifiers/functions/MultilayerPerceptron')
-BoW_MLP_m <- MLP( churn~ ., data = final_training_set,control = Weka_control(N=70,L=0.3))
-
-predictions_all_MLP <- predict(BoW_MLP_m, newdata = validation, type = "probability")
-MLP_pred_cutoff_50 <- ifelse(predictions_all_MLP[,2] > 0.5, 1, 0)
-
-MLP_conf_matrix_50 <- table(validation$churn, MLP_pred_cutoff_50) %>% confusionMatrix(positive='1')
-MLP_conf_matrix_50
-
-```
-```{r}
-mplot_roc(validation$churn, predictions_all_MLP[,1])
-```
-
 Weka - Random Forest
 ```{r}
+set.seed(1)
 WekaForest <- make_Weka_classifier("weka/classifiers/trees/RandomForest")
 
 Weka_forest_model <- WekaForest(churn ~ ., data=final_training_set)
@@ -113,16 +98,63 @@ Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
 
 Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix(positive='1')
 Weka_forest_conf_matrix_50
-
-install.packages("RWeka")
-library(Rweka)
 ```
 ```{r}
 frame4<- mplot_roc(validation$churn, Weka_forest_predictions[,2])
 frame4
 ```
 
-Looking at data divide for best model
+
+```{r}
+install.packages("cvTools")
+library(cvTools)
+
+#you may need to restart R and increase your memory limit with: options(java.parameters = "-Xmx2048m")
+k=10
+folds <- cvFolds(NROW(final_set), K=k)
+final_set$holdoutpred <- rep(0,nrow(final_set))
+final_set$fold <- rep(0,nrow(final_set))
+
+for(i in 1:k){
+  train <- final_set[folds$subsets[folds$which != i], ]
+  validation <- final_set[folds$subsets[folds$which == i], ]
+  
+Weka_forest_model <- WekaForest(churn ~ ., data=train)
+  newpred <- predict(Weka_forest_model, newdata=validation, type = "probability")
+  final_set[folds$subsets[folds$which == i], ]$holdoutpred <- newpred[,2]
+  final_set[folds$subsets[folds$which == i], ]$fold <- i
+}
+final_set$holdoutpred
+
+final_set$actualpred <- ifelse(final_set$holdoutpred > 0.5, 1,0)
+Weka_forest_conf_matrix_51 <- table(final_set$churn, final_set$actualpred) %>% confusionMatrix(positive='1')
+Weka_forest_conf_matrix_51
+
+
+#install.packages("SDMTools")
+library(SDMTools)
+
+payoffMatrix <- data.frame(threshold = seq(from = 0.4, to = 0.6, by= 0.01), payoff = NA)
+for(i in 1:length(payoffMatrix$threshold)) {
+  confMatrix <- confusion.matrix(final_set$churn, final_set$holdoutpred, threshold = payoffMatrix$threshold[i])
+  payoffMatrix$payoff[i] <- confMatrix[2,2]* 50 + confMatrix[2,1] *(-50.5)
+}
+payoffMatrix
+```
+
+```{r}
+mplot_roc(final_set$churn, final_set$holdoutpred)
+```
+```{r}
+#install.packages("ROCR")
+library(ROCR)
+
+pred <- prediction(final_set$holdoutpred, final_set$churn) 
+perf <- performance(pred,"lift","rpp")
+plot(perf, main="lift curve", colorize=T)
+```
+
+
 ```{r}
 mplot_density <- function(tag, score, model_name = NA, subtitle = NA, 
                           save = FALSE, file_name = "viz_distribution.png") {
@@ -145,13 +177,14 @@ mplot_density <- function(tag, score, model_name = NA, subtitle = NA,
   p1 <- ggplot(out) + theme_minimal() +
     geom_density(aes(x = 100 * score, group = tag, fill = as.character(tag)), 
                  alpha = 0.6, adjust = 0.25) + 
-    guides(fill = guide_legend(title="Tag")) + 
+    guides(fill = guide_legend(title="Churn")) + 
     xlim(0, 100) + 
     labs(title = "Score distribution for binary model",
-         y = "Density by tag", x = "Score")
+         y = "Density by tag", x = "Predicted % to Churn") +
+    scale_fill_manual(values=c("deepskyblue", "red"))
 return(p1)
 }
-frame1 <- mplot_density(validation$churn, Weka_forest_predictions[,2])
+frame1 <- mplot_density(final_set$churn, final_set$holdoutpred)
 frame1
 ```
 
@@ -175,9 +208,9 @@ mplot_cuts <- function(score, splits = 10, subtitle = NA, model_name = NA,
               aes(x = reorder(Deciles, deciles), y = deciles * 100, 
                   label = round(100 * deciles, 1))) + 
     geom_col(fill="deepskyblue") + 
-    xlab('') + theme_minimal() + ylab('Score') + 
+    xlab('Data Intervals') + theme_minimal() + ylab('Predicted % to Churn') + 
     geom_text(vjust = 1.5, size = 3, inherit.aes = TRUE, colour = "white", check_overlap = TRUE) +
-    labs(title = paste("Cuts by score"))
+    labs(title = paste("Predicted % to Churn Binned in Intervals"))
 
   if(!is.na(subtitle)) {
     p <- p + labs(subtitle = subtitle)
@@ -193,7 +226,6 @@ mplot_cuts <- function(score, splits = 10, subtitle = NA, model_name = NA,
 
 frame3<- mplot_cuts(Weka_forest_predictions[,2])
 frame3
-# score = predicted % to churn between 0-100%
 ```
 
 
@@ -207,7 +239,7 @@ library(RColorBrewer)
     summarise(n = n(), 
               max_score = round(100 * max(Weka_forest_predictions[,2]), 1), 
               min_score = round(100 * min(Weka_forest_predictions[,2]), 1)) %>%
-    mutate(quantile_tag = paste0(quantile," (",min_score,"-",max_score,")"))
+    mutate(quantile_tag = paste0("",quantile,"~20%"))
   
   frame2 <- df %>%
     mutate(quantile = ntile(Weka_forest_predictions[,2], 5)) %>% 
@@ -221,9 +253,9 @@ library(RColorBrewer)
                fill = as.character(quantile_tag))) + theme_minimal() +
     geom_col(position = "stack") +
     geom_text(size = 3, position = position_stack(vjust = 0.5), check_overlap = TRUE) +
-    xlab("Tag") + ylab("Total Percentage by Tag") +
+    xlab("Did / Did Not Churn") + ylab("Total Percentage by Tag") +
     guides(fill = guide_legend(title=paste0("~",npersplit," p/split"))) +
-    labs(title = "Tag vs Score Splits Comparison") +
+    labs(title = "20% Splits Comparing Churn as Percentage") +
     scale_fill_brewer(palette = "Spectral", direction=-1)
   
   frame2
@@ -249,6 +281,10 @@ confusionMatrix(final_predictions, validation$Class, positive='1')
 ```
 
 ```{r}
+t.test(x=c(66.2,65.45,66.7), data = tele_clean, alternative = "greater", mu =62)
+
+
+
 binom.test(7451, 7451+7667, p=0.5, alternative = "two.sided")
 mcnemar.test(table(basic_test_set$churn, basic_pred_cutoff),table(validation$churn, Weka_forest_pred_cutoff_50))
 write.arff(final_set, "final_set.arff")
