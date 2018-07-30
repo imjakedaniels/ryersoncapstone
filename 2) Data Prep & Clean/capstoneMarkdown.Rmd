@@ -61,10 +61,15 @@ tele_clean <- inner_join(Billing, Customer) %>%
   inner_join(Operations) %>%
   inner_join(Product) %>%
   inner_join(Service)
+
+write_csv(tele, "tele.csv")
 ```
-## Load tele.csv manually to skip the AWS setup
+
+## Load tele.csv manually to skip the AWS setup, insert your own directory where "ryersoncapstone1" is
 ```{r}
-# tele_clean <- read_csv("~Downloads/tele.csv")
+library(readr)
+# tele_clean <- read_csv("~/ryersoncapstone1/2) Data Prep & Clean/tele.csv")
+# View(tele_clean)
 ```
 
 Univariate Cleaning NA/OUTLIER for Models

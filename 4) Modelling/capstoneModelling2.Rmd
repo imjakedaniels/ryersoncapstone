@@ -23,7 +23,7 @@ R_logistic_model <- glm(churn ~ ., family = "binomial", data = final_training_se
   R_pred_cutoff_50 <- ifelse(R_predictions > 0.5, 1, 0)
   
 # Constructing a confusion matrix
-  R_conf_matrix_50 <- table(validation$churn, R_pred_cutoff_50) %>% confusionMatrix(positive='1')
+  R_conf_matrix_50 <- table(validation$churn, R_pred_cutoff_50) %>% confusionMatrix()
 
 R_conf_matrix_50
 ```
@@ -32,6 +32,7 @@ model_name <- paste("glm(churn ~ ., family = 'binomial', data = final_training_s
 subtitle <- paste("Logistic Regression in R")  
 mplot_roc(validation$churn, R_predictions, model_name = model_name, subtitle = subtitle)
 ```
+
 Caret - Logistic 10 Fold
 ```{r}
 # train a model and summarize model
@@ -44,7 +45,7 @@ set.seed(1)
 fit.glm_pred_cutoff_50 <- predict(fit.glm, newdata=validation)
 
 # Constructing a confusion matrix
-  fit.glm_conf_matrix_50 <- table(validation$churn, fit.glm_pred_cutoff_50) %>% confusionMatrix(positive='1')
+  fit.glm_conf_matrix_50 <- table(validation$churn, fit.glm_pred_cutoff_50) %>% confusionMatrix()
 
 fit.glm_conf_matrix_50
 ```
@@ -54,6 +55,7 @@ subtitle <- paste("10-Fold Logistic Regression with Caret")
 fit.glm_predictions <- predict(fit.glm, newdata=validation, type = "prob")
 mplot_roc(validation$churn, fit.glm_predictions[,2], model_name = model_name, subtitle = subtitle)
 ```
+
 Weka - logitBoost
 ```{r}
 set.seed(1)
@@ -61,7 +63,7 @@ Weka_boost_model <- LogitBoost(churn ~ ., data=final_training_set)
 
 Weka_boost_predictions <- predict(Weka_boost_model, newdata = validation, type = "probability")
   Weka_boost_pred_cutoff_50 <- ifelse(Weka_boost_predictions[,2] > 0.5, 1, 0)
-  Weka_boost_conf_matrix_50 <- table(validation$churn, Weka_boost_pred_cutoff_50) %>% confusionMatrix(positive='1')
+  Weka_boost_conf_matrix_50 <- table(validation$churn, Weka_boost_pred_cutoff_50) %>% confusionMatrix()
 Weka_boost_conf_matrix_50
 ```
 ```{r}
@@ -69,6 +71,7 @@ model_name <- paste("LogitBoost(churn ~ ., data=final_training_set)")
 subtitle <- paste("LogitBoost with Weka")  
 mplot_roc(validation$churn, Weka_boost_predictions[,1], model_name = model_name, subtitle = subtitle)
 ```
+
 Weka - Naive Bayes
 ```{r}
 set.seed(1)
@@ -78,7 +81,7 @@ weka_NB_model <- NB(churn ~ ., data=final_training_set)
 Weka_NB_predictions <- predict(weka_NB_model, newdata = validation, type = "probability")
 Weka_NB_pred_cutoff_50 <- ifelse(Weka_NB_predictions[,2] > 0.5, 1, 0)
 
-Weka_NB_conf_matrix_503 <- table(validation$churn, Weka_NB_pred_cutoff_50) %>% confusionMatrix(positive='1')
+Weka_NB_conf_matrix_503 <- table(validation$churn, Weka_NB_pred_cutoff_50) %>% confusionMatrix()
 Weka_NB_conf_matrix_503
 ```
 ```{r}
@@ -86,6 +89,27 @@ model_name <- paste("NB(churn ~ ., data=final_training_set)")
 subtitle <- paste("Naive Bayes with Weka")  
 mplot_roc(validation$churn, Weka_NB_predictions[,2], model_name = model_name, subtitle = subtitle)
 ```
+
+Caret - Gradient Boost Machine (GBM)
+```{r}
+set.seed(1)
+fit.gbm <- train(churn ~ ., data=final_training_set, method="gbm", 
+                 metric="Accuracy", trControl=control, verbose=FALSE)
+
+fit.gbm_pred <- predict(fit.gbm, newdata=validation,  type = "prob")
+fit.gbm_pred_cutoff_50 <- ifelse( fit.gbm_pred[,2] > 0.5, 1,0)
+# Constructing a confusion matrix
+  fit.gbm_conf_matrix_50 <- table(validation$churn, fit.gbm_pred_cutoff_50) %>% confusionMatrix()
+
+fit.gbm_conf_matrix_50
+```
+```{r}
+model_name <- paste("train(churn ~ ., data=final_training_set, method='gbm', 
+                 metric='Accuracy', trControl=control, verbose=FALSE)")
+subtitle <- paste("Gradient Boost Machine with Caret") 
+mplot_roc(validation$churn, fit.gbm_pred_cutoff_50, model_name = model_name, subtitle = subtitle)
+```
+
 Weka - Random Forest
 ```{r}
 set.seed(1)
@@ -96,10 +120,9 @@ Weka_forest_model <- WekaForest(churn ~ ., data=final_training_set)
 Weka_forest_predictions <- predict(Weka_forest_model, newdata = validation, type = "probability")
 Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
 
-Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix(positive='1')
+Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix()
 Weka_forest_conf_matrix_50
 ```
-Visualize AUC
 ```{r}
 model_name <- paste("WekaForest(churn ~ ., data=final_training_set)")
 subtitle <- paste("Random Forest with Weka") 
@@ -136,7 +159,7 @@ mplot_density <- function(tag, score, model_name = NA, subtitle = NA,
     scale_fill_manual(values=c("deepskyblue", "red"))
 return(p1)
 }
-frame1 <- mplot_density(final_set$churn, final_set$holdoutpred)
+frame1 <- mplot_density(validation$churn, Weka_forest_predictions[,2])
 frame1
 ```
 Visualizie Bins
@@ -218,163 +241,244 @@ grid.arrange(
       widths = c(1.3,1),
       layout_matrix = rbind(c(1,2), c(1,2), c(1,3), c(4,3)))
 ```
+Highest Payoff - adjust model to >= 0.49
+```{r}
+#install.packages("SDMTools")
+library(SDMTools)
 
+# the lowest true-negative count is found when the threshold is changed to to 0.49
+payoffMatrix_forest <- data.frame(threshold = seq(from = 0.4, to = 0.6, by= 0.01), payoff = NA)
+for(i in 1:length(payoffMatrix_forest$threshold)) {
+  confMatrix <- confusion.matrix(validation$churn, Weka_forest_predictions[,2], threshold = payoffMatrix_forest$threshold[i])
+  payoffMatrix_forest$payoff[i] <- confMatrix[2,2]* 50 + confMatrix[2,1] *(-50.5)
+}
+payoffMatrix_forest
+
+Weka_forest_conf_matrix_49 <- table(validation$churn, ifelse(Weka_forest_predictions[,2] >= 0.49, 1, 0)) %>% confusionMatrix()
+Weka_forest_conf_matrix_49
+```
 Calculate Lift
 ```{r}
 #install.packages("ROCR")
 library(ROCR)
 
+# Forest
 pred <- prediction(Weka_forest_predictions[,2], validation$churn) 
 perf <- performance(pred,"lift","rpp")
-plot(perf, main="lift curve", colorize=T)
+plot(perf, main="Random Forest Lift curve 1.259275", colorize=T)
+
+# GBM
+pred <- prediction(fit.gbm_pred[,2], validation$churn) 
+perf <- performance(pred,"lift","rpp")
+plot(perf, main="GBM Lift curve 1.255964", colorize=T)
 ```
-
-Highest Payoff Cutoff
+Comparing all models
 ```{r}
-#install.packages("SDMTools")
-library(SDMTools)
+#install.packages("descr")
+library(descr)
 
-payoffMatrix <- data.frame(threshold = seq(from = 0.4, to = 0.6, by= 0.01), payoff = NA)
-for(i in 1:length(payoffMatrix$threshold)) {
-  confMatrix <- confusion.matrix(final_set$churn, final_set$holdoutpred, threshold = payoffMatrix$threshold[i])
-  payoffMatrix$payoff[i] <- confMatrix[2,2]* 50 + confMatrix[2,1] *(-50.5)
-}
-payoffMatrix
+Model_Comparison <- data.frame(Model = NA, Accuracy = NA, Recall_TPR = NA, Specificity_TNR = NA, Precision_FPR = NA, AUC = NA, Lift = NA, FScore= NA)
+
+# Name
+Model_Comparison$Model <- "Basic Model"
+#Accuracy
+Model_Comparison$Accuracy <- basic_conf_matrix$overall["Accuracy"]
+# Recall
+Model_Comparison$Recall_TPR <- basic_conf_matrix$byClass["Sensitivity"]
+# False Negative Rate
+Model_Comparison$Specificity_TNR <- basic_conf_matrix$byClass["Specificity"]
+# Precision/PPV
+Model_Comparison$Precision_FPR <- basic_conf_matrix$byClass["Pos Pred Value"]
+# AUC
+Model_Comparison$AUC <- 62.14
+# Lift
+pred <- prediction(basic_predictions, basic_test_set$churn)
+perf <- performance(pred, "lift", "rpp")
+liftvalues <- perf@y.values
+liftvalues<-as.data.frame(liftvalues)
+Model_Comparison$Lift <- mean(liftvalues[-1,])
+# F-Score
+Model_Comparison$FScore <-  basic_conf_matrix$byClass["F1"]
+
+######
+
+# Name
+Model_Comparison[2,]$Model <- "Logistic Regression"
+#Accuracy
+Model_Comparison[2,]$Accuracy <- R_conf_matrix_50$overall["Accuracy"]
+# Recall
+Model_Comparison[2,]$Recall_TPR <- R_conf_matrix_50$byClass["Sensitivity"]
+# False Negative Rate
+Model_Comparison[2,]$Specificity_TNR <- R_conf_matrix_50$byClass["Specificity"]
+# Precision/PPV
+Model_Comparison[2,]$Precision_FPR <- R_conf_matrix_50$byClass["Pos Pred Value"]
+# AUC
+Model_Comparison[2,]$AUC <- 62.55
+# Lift
+pred <- prediction(R_pred_cutoff_50, validation$churn)
+perf <- performance(pred, "lift", "rpp")
+liftvalues <- perf@y.values
+liftvalues<-as.data.frame(liftvalues)
+Model_Comparison[2,]$Lift <- mean(liftvalues[-1,])
+# F-Score
+Model_Comparison[2,]$FScore <-  R_conf_matrix_50$byClass["F1"]
+
+######
+
+# Name
+Model_Comparison[3,]$Model <- "LogitBoost"
+#Accuracy
+Model_Comparison[3,]$Accuracy <- Weka_boost_conf_matrix_50$overall["Accuracy"]
+# Recall
+Model_Comparison[3,]$Recall_TPR <- Weka_boost_conf_matrix_50$byClass["Sensitivity"]
+# False Negative Rate
+Model_Comparison[3,]$Specificity_TNR <- Weka_boost_conf_matrix_50$byClass["Specificity"]
+# Precision/PPV
+Model_Comparison[3,]$Precision_FPR <- Weka_boost_conf_matrix_50$byClass["Pos Pred Value"]
+# AUC
+Model_Comparison[3,]$AUC <- 63.25
+# Lift
+pred <- prediction(Weka_boost_predictions[,2], validation$churn)
+perf <- performance(pred, "lift", "rpp")
+liftvalues <- perf@y.values
+liftvalues<-as.data.frame(liftvalues)
+Model_Comparison[3,]$Lift <- mean(liftvalues[-1,])
+# F-Score
+Model_Comparison[3,]$FScore <-  Weka_boost_conf_matrix_50$byClass["F1"]
+
+######
+
+# Name
+Model_Comparison[4,]$Model <- "Naive Bayes"
+#Accuracy
+Model_Comparison[4,]$Accuracy <- Weka_NB_conf_matrix_503$overall["Accuracy"]
+# Recall
+Model_Comparison[4,]$Recall_TPR <- Weka_NB_conf_matrix_503$byClass["Sensitivity"]
+# False Negative Rate
+Model_Comparison[4,]$Specificity_TNR <- Weka_NB_conf_matrix_503$byClass["Specificity"]
+# Precision/PPV
+Model_Comparison[4,]$Precision_FPR <- Weka_NB_conf_matrix_503$byClass["Pos Pred Value"]
+# AUC
+Model_Comparison[4,]$AUC <- 57.96
+# Lift
+pred <- prediction(Weka_NB_predictions[,2], validation$churn)
+perf <- performance(pred, "lift", "rpp")
+liftvalues <- perf@y.values
+liftvalues<-as.data.frame(liftvalues)
+Model_Comparison[4,]$Lift <- mean(liftvalues[-1,])
+# F-Score
+Model_Comparison[4,]$FScore <-  Weka_NB_conf_matrix_503$byClass["F1"]
+
+#####
+
+# Name
+Model_Comparison[5,]$Model <- "Random Forest"
+#Accuracy
+Model_Comparison[5,]$Accuracy <- Weka_forest_conf_matrix_50$overall["Accuracy"]
+# Recall
+Model_Comparison[5,]$Recall_TPR <- Weka_forest_conf_matrix_50$byClass["Sensitivity"]
+# False Negative Rate
+Model_Comparison[5,]$Specificity_TNR <- Weka_forest_conf_matrix_50$byClass["Specificity"]
+# Precision/PPV
+Model_Comparison[5,]$Precision_FPR <- Weka_forest_conf_matrix_50$byClass["Pos Pred Value"]
+# AUC
+Model_Comparison[5,]$AUC <- 66.2
+# Lift
+pred <- prediction(Weka_forest_predictions[,2], validation$churn)
+perf <- performance(pred, "lift", "rpp")
+liftvalues <- perf@y.values
+liftvalues<-as.data.frame(liftvalues)
+Model_Comparison[5,]$Lift <- mean(liftvalues[-1,])
+# F-Score
+Model_Comparison[5,]$FScore <-  Weka_forest_conf_matrix_50$byClass["F1"]
+
+#######
+
+# Name
+Model_Comparison[6,]$Model <- "Gradient Boost Machine"
+#Accuracy
+Model_Comparison[6,]$Accuracy <- fit.gbm_conf_matrix_50$overall["Accuracy"]
+# Recall
+Model_Comparison[6,]$Recall_TPR <- fit.gbm_conf_matrix_50$byClass["Sensitivity"]
+# False Negative Rate
+Model_Comparison[6,]$Specificity_TNR <- fit.gbm_conf_matrix_50$byClass["Specificity"]
+# Precision/PPV
+Model_Comparison[6,]$Precision_FPR <- fit.gbm_conf_matrix_50$byClass["Pos Pred Value"]
+# AUC
+Model_Comparison[6,]$AUC <- 62.49
+# Lift
+pred <- prediction(fit.gbm_pred[,2], validation$churn)
+perf <- performance(pred, "lift", "rpp")
+liftvalues <- perf@y.values
+liftvalues<-as.data.frame(liftvalues)
+Model_Comparison[6,]$Lift <- mean(liftvalues[-1,])
+# F-Score
+Model_Comparison[6,]$FScore <-  fit.gbm_conf_matrix_50$byClass["F1"]
+
+write_csv(Model_Comparison, "Model_Comparison.csv")
+
+
+#we want a model that produces as few flase positives - people predicted to churn, but stayed - as possible. These customers are usually targeted for marketing since they are at-risk to churn and a model that has a high rate of incorrect guesses is a waste of money. This is why I've used lift, it measures the power to correctly predict churn in regards to high decile customers. 
+Model_Comparison
 ```
 
 Staistical Significance
 ```{r}
-t.test(x=c(66.2,65.45,66.7), data = tele_clean, alternative = "greater", mu =62)
-
-
-
-binom.test(7451, 7451+7667, p=0.5, alternative = "two.sided")
-mcnemar.test(table(basic_test_set$churn, basic_pred_cutoff),table(validation$churn, Weka_forest_pred_cutoff_50))
-write.arff(final_set, "final_set.arff")
+# using lower, avg and upper AUC values since I couldnt get 10-fold to work within memory constraints, mu is AUC average from basic model
+t.test(x=c(65.45,66.2,66.95), data = tele_clean, alternative = "greater", mu =62.14)
 ```
-Evaluating Model Value
+
+Identifying the False-Positive Customers still in with company we want to reach out to
 ```{r}
-Gain
+customers <- Weka_forest_predictions[,0]
+validation_set <- as.data.frame(Weka_forest_predictions[,2]) %>% cbind(validation$churn) %>% cbind(tele_clean[row.names(customers),]$Customer_ID) 
 
+
+#targeting top 30% likeliest to churn from our validation set and we target to market for
+Target_Customers <- validation_set %>%
+filter(validation_set$`Weka_forest_predictions[, 2]` > 0.7) 
+
+Target_Customers <- tele_clean[which(tele_clean$Customer_ID %in% as.character(Target_Customers$`tele_clean[row.names(customers), ]$Customer_ID`)),]
+Target_Customers
 ```
+
+
+Total_Targeted = 19562
+Fraction_Targeted = 0.04544525
+Targeted_Total = length(Target_Customers$Customer_ID) = 889
+Fraction_of_WouldBe = length(which(Target_Customers$churn == 1))/length(which(Target_Customers$churn) = 677/889 = 0.7615298
+Rebate = $50
+SuccessRate = 0.3
+Contact_Cost = 0.5
+Expected_Customer_Value = mean(Billing$avgrev) * mean(Customer$months) = 1090.75
+
+ Total Customers * Did Accept Who Would Leave + Would Not Accept + Accepted but were gonna stay
+          Nα           { βγ(LVC-c-δ)             +   β(1-γ)(-c)   +        (1-β)(-c-δ) }
+
+
+The first term within the brackets reflects profit contribution among the βγ fraction of
+contacted customers who are would-be churners and decide based on the incentive to stay
+with the company. The firm retrieves their lifetime value at a cost of c+δ. The second
+term within the brackets reflects profit contribution among the β(1-γ) fraction of
+contacted would-be churners who do not accept the offer and leave the firm. The loss
+from these customers is c, since they do not accept the offer. The third term within the
+brackets reflects profit contribution among the (1-β) fraction of contacted customers who
+are not would-be churners. We assume these customers accept the offer and cost the
+company c+δ. These customers represent the wasted money for the firm. They were not
+going to churn yet the firm spent incentive money on them.
+
+```{r}
+19562*0.04544525*(0.3*0.7615298*(1090.75-50-0.5) + 0.7615298*(1-0.3)*(-.5) + (1-0.7615298)*(-0.50-50))
+#      889             0.3(248.0686)             -       0.2665354         -     12.04275
+```                       
+Of the 889 at-risk (predicted >70%) customers, worth 1090.75 each, totals $969,676 expected to churn.
+
+The Churn Managemet Program at a 30% success rate will retain $200,331.80 from customers when offering a $50 rebate at 50 cents a call. 
+
+Those in this range of predictions are expected to churn at a rate of ~76% or $738,437, if we are 30% successful, we can retain $221.531 of that money -- however, once we factor in punishments for marketing to customers who do not accept the offer and leave, as well as custoemrs who were going to stay and accepted the offer anyway, it rounds the revenue down to $200,331.80
 
 Save Model
 ```{r}
 # save the model to disk
-saveRDS(Weka_forest_model, "./Weka_forest_model.rds")
- 
-# load the model
-final_model <- readRDS("./Weka_forest_model.rds")
-print(final_model)
-# make a predictions on "new data" using the final model
-final_predictions <- predict(final_model, validation$churn)
-confusionMatrix(final_predictions, validation$Class, positive='1')
+saveRDS(Weka_forest_model, "Weka_forest_model.rds")
 ```
-
-
-
-
-
-Other caret models
-```{r}
-# linear algorithms
-set.seed(7)
-fit.lda <- train(churn ~ ., data=DstTrainModel, method="lda", metric=metric, trControl=control)
-
-# CART
-set.seed(7)
-fit.cart <- train(churn ~ ., data=DstTrainModel, method="rpart", metric=metric, trControl=control)
-
-# kNN
-set.seed(7)
-fit.knn <- train(churn ~ ., data=DstTrainModel, method="knn", 
-                 metric=metric, trControl=control, preProcess = c("center","scale"), tuneLength = 5)
-
-# Random Forest
-set.seed(7)
-fit.rf <- train(churn ~ ., data=DstTrainModel, method="rf", metric=metric, trControl=control)
-
-# Gradient Boost Machine (GBM)
-set.seed(7)
-fit.gbm <- train(churn ~ ., data=DstTrainModel, method="gbm", 
-                 metric=metric, trControl=control, verbose=FALSE)
-```
-
-Compare Results
-```{r}
-results <- resamples(list(
-    glm=fit.glm, 
-    lda=fit.lda, 
-    cart=fit.cart,
-    gbm=fit.gbm
-))
-    #knn=fit.knn,
-    #rf=fit.rf,
-summary(results)
-# compare accuracy of models
-dotplot(results)
-
-
-AccCalc <- function(TestFit, name) {
-    # prediction 
-    DstTestModelClean <- DstTestModel
-    DstTestModelClean$churn <- NA
-    predictedval <- predict(TestFit, newdata=DstTestModelClean)
-    
-    # summarize results with confusion matrix
-    cm <- confusionMatrix(predictedval, DstTestModel$churn)
-    
-    # calculate accuracy of the model
-    Accuracy<-round(cm$overall[1],2)
-    acc <- as.data.frame(Accuracy)
- 
-    roc_obj <- roc(DstTestModel$churn, as.numeric(predictedval))
-    acc$Auc <- auc(roc_obj)
-    
-    acc$FitName <- name
-    return(acc)
-}
-
-accAll <- AccCalc(fit.glm, "glm")
-accAll <- rbind(accAll, AccCalc(fit.lda, "lda"))
-accAll <- rbind(accAll, AccCalc(fit.cart, "cart"))
-#accAll <- rbind(accAll, AccCalc(fit.knn, "knn"))
-#accAll <- rbind(accAll, AccCalc(fit.rf, "rf"))
-accAll <- rbind(accAll, AccCalc(fit.gbm, "gbm"))
-rownames(accAll) <- c()
-arrange(accAll,desc(Accuracy))
-```
-```{r}
-
-
-```{r}
-#install.packages("cvTools")
-library(cvTools)
-
-#you may need to restart R and run these lines first to increase your memory limit: 
-# library(rJava) 
-# options(java.parameters = "-Xmx2048m")
-
-k=4
-folds <- cvFolds(NROW(final_set), K=k)
-final_set$holdoutpred <- rep(0,nrow(final_set))
-final_set$fold <- rep(0,nrow(final_set))
-
-for(i in 1:k){
-  train <- final_set[folds$subsets[folds$which != i], ]
-  validation <- final_set[folds$subsets[folds$which == i], ]
-  
-Weka_forest_model <- WekaForest(churn ~ ., data=train)
-  newpred <- predict(Weka_forest_model, newdata=validation, type = "probability")
-  final_set[folds$subsets[folds$which == i], ]$holdoutpred <- newpred[,2]
-  final_set[folds$subsets[folds$which == i], ]$fold <- i
-}
-final_set$holdoutpred
-
-final_set$actualpred <- ifelse(final_set$holdoutpred > 0.5, 1,0)
-Weka_forest_conf_matrix_51 <- table(final_set$churn, final_set$actualpred) %>% confusionMatrix(positive='1')
-Weka_forest_conf_matrix_51
-
-
-```
-
