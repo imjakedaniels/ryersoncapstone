@@ -475,7 +475,7 @@ Of the 889 at-risk (predicted >70%) customers, worth 1090.75 each, totals $969,6
 
 The Churn Managemet Program at a 30% success rate will retain $200,331.80 from customers when offering a $50 rebate at 50 cents a call. 
 
-Those in this range of predictions are expected to churn at a rate of ~76% or $738,437, if we are 30% successful, we can retain $221.531 of that money -- however, once we factor in punishments for marketing to customers who do not accept the offer and leave, as well as custoemrs who were going to stay and accepted the offer anyway, it rounds the revenue down to $200,331.80
+Those in this range of predictions are expected to churn at a rate of ~76% or $738,437, if we are 30% successful, we can retain $221,531 of that money -- however, once we factor in punishments for marketing to customers who do not accept the offer and leave, as well as custoemrs who were going to stay and accepted the offer anyway, it rounds the revenue down to $200,331.80
 
 Save Model
 ```{r}
