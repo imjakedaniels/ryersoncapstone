@@ -1,0 +1,60 @@
+---
+title: "AWS Import"
+author: "Jake Daniels"
+date: "July 30, 2018"
+output: html_document
+---
+# Part 1- Loading AWS
+Cleaning & Visual Packages Required
+```{r, echo=FALSE}
+#install.packages("DBI")
+library(DBI)
+#install.packages("RMySQL")
+library(RMySQL)
+#install.packages("tidyverse")
+library(tidyverse)
+```
+
+## OPTIONAL
+Loading in Data from AWS MySQL
+```{r, echo=FALSE}
+# Utilizing .Renviron to mask sensitive information
+cn <- dbConnect(drv      = RMySQL::MySQL(), 
+                username = "root", 
+                password = Sys.getenv("MY_PASS"), 
+                host     = Sys.getenv("MY_HOST"), 
+                port     = 3306, 
+                dbname   = "capstoneryersonMYSQL")
+
+Billing <- dbGetQuery(cn, "SELECT * FROM Billing;")
+Customer <- dbGetQuery(cn, "SELECT * FROM Customer;")
+CustService <- dbGetQuery(cn, "SELECT * FROM CustServ;")
+Operations <- dbGetQuery(cn, "SELECT * FROM Operations;")
+Product <- dbGetQuery(cn, "SELECT * FROM Product;")
+Service <- dbGetQuery(cn, "SELECT * FROM Service;")
+
+dbDisconnect(cn)
+```
+
+Execute Script: R - Correcting NA Values.R
+```{r setup, echo=FALSE}
+# had to create a script as a workaround for NA numerics values defaulting to 0 when pulled from RDBMS, 
+# manually inserting with script
+library(knitr)
+opts_chunk$set(echo = FALSE, cache=FALSE)
+read_chunk('~/ryersoncapstone1/2) Data Prep & Clean/R - Correcting NA Values.R')
+```
+```{r part1} 
+read_chunk('~/ryersoncapstone1/2) Data Prep & Clean/R - Correcting NA Values.R')
+```
+
+Combining all tables to make dropping rows consistent when cleaning
+```{r}
+tele_clean <- inner_join(Billing, Customer) %>%
+  inner_join(CustService) %>%
+  inner_join(Operations) %>%
+  inner_join(Product) %>%
+  inner_join(Service)
+
+write_csv(tele, "tele.csv")
+```
