@@ -2,9 +2,9 @@
 
 Customer Retention UI
 
-I want to create a Shiny App in R that displays a customer’s profile with demographics, billing history, customer service, and technical records that displays their risk to churn as "LOW" or "AT-RISK" based on machine learning models - logistic regression, gradient boost, random forest, J48 decision tree, k-means Clustering - optimized using Weka's java-powered UI.
+This project aims to develop a statistically stronger classification model to predict customer churn compared to a standard, non-dimensionality-reduced, logistic-regression model. I will visualize the trends responsible for increasing the propensity to churn then calculate customer-lifetime value (CLV) and lift to budget a campaign centred around targeting true-negative customers who are at-risk to churn and suggest solutions that can help reduce the risk.
 
-The goal is to design a UI that can look up customer records for a call-center employee to either proactively call the customer to sell services, or reactively examine customer details when the customer calls customer-service. I hope this can be a tool to assist a telecom or other types of subscription-based business interested in customer retention.
+I will make a better model by performing various dimensionality-reduction techniques to handle NA values, outliers and extreme values to reduce the number of rows in my dataset then normalize the numeric values.  I will reduce the number of variables by removing them based on results from near-zero variance, multi-colinearity, information-gain, and Boruta importance. This will generate a condensed dataset to train a mixture or models using R, Caret and Weka. I will calculate the gain difference between my model and a basic, untouched model to find the real dollar difference my improved model brings to the company.
 
 My dataset can be found here: https://www.kaggle.com/abhinav89/telecom-customer/data 
 It has approx. 100,000 rows, 100 variables, and a description of each variable here: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.489.5495&rep=rep1&type=pdf
