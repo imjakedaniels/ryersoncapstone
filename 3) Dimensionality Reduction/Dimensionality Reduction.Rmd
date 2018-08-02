@@ -150,6 +150,7 @@ nums <- unlist(lapply(tele_clean_rows, is.numeric))
 normalized <- sapply(tele_clean_rows[,nums], normFunc) %>% as.data.frame()
 ```
 
+See Reduction Visuals - melted_visual - near zero variance
 ```{r}
 # examing distributions for low variance (limited to absolute 3 to negate extreme values)
 melt(normalized[,1:12]) %>%
@@ -293,6 +294,7 @@ tail(churn_infogain,15)
 ```
 
 4.2 Visualizing top results
+See Reduction Visuals - weka_infogain_importance
 ```{r}
 model_name <- paste("Weka - InfoGainAttributeEval")
 subtitle <- paste("Top 15 Variables Ranked on Importance by InfoGainAttributeEval")
@@ -363,6 +365,7 @@ library(Boruta)
 print(boruta_output$finalDecision)  # significant/tentative/rejectd variables
 ```
 5.2 Visualize
+See Reduction Visuals - boruta_importance
 ```{r}
 # plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance with Boruta") 
 ```
