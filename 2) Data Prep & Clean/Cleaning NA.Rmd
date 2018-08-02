@@ -204,7 +204,7 @@ lor (length of residence in years)
 ```
 adults
 ```{r}
-# keep the na by binning the data - anyone with 3-6 adults are combined into one
+# keep the na by binning the data - anyone with 3-6 adults are combined into one 
 tele_clean$adults <- cut(tele_clean$adults, c(0,1,2,6), labels = c("One", "Two","Three+"))
   levels(tele_clean$adults) <- c(levels(tele_clean$adults), "UNKWN")
   na_index <- which(is.na(tele_clean$adults))
