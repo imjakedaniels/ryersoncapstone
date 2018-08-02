@@ -7,6 +7,8 @@ output: html_document
 
 # Part 4) Modelling
 
+See each model's results and ROC Curve in their respective github folder
+
 R - Logistic 
 ```{r}
 set.seed(1)
@@ -41,8 +43,7 @@ control <- trainControl(method="cv", number=10)
 fit.glm <- train(churn~., data=final_training_set, method="glm", metric="Accuracy", trControl=control)
 
 # estimate skill on validation dataset
-set.seed(1)
-fit.glm_pred_cutoff_50 <- predict(fit.glm, newdata=validation)
+  fit.glm_pred_cutoff_50 <- predict(fit.glm, newdata=validation)
 
 # Constructing a confusion matrix
   fit.glm_conf_matrix_50 <- table(validation$churn, fit.glm_pred_cutoff_50) %>% confusionMatrix()
@@ -79,9 +80,8 @@ NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
 weka_NB_model <- NB(churn ~ ., data=final_training_set)
 
 Weka_NB_predictions <- predict(weka_NB_model, newdata = validation, type = "probability")
-Weka_NB_pred_cutoff_50 <- ifelse(Weka_NB_predictions[,2] > 0.5, 1, 0)
-
-Weka_NB_conf_matrix_503 <- table(validation$churn, Weka_NB_pred_cutoff_50) %>% confusionMatrix()
+  Weka_NB_pred_cutoff_50 <- ifelse(Weka_NB_predictions[,2] > 0.5, 1, 0)
+  Weka_NB_conf_matrix_503 <- table(validation$churn, Weka_NB_pred_cutoff_50) %>% confusionMatrix()
 Weka_NB_conf_matrix_503
 ```
 ```{r}
@@ -97,10 +97,8 @@ fit.gbm <- train(churn ~ ., data=final_training_set, method="gbm",
                  metric="Accuracy", trControl=control, verbose=FALSE)
 
 fit.gbm_pred <- predict(fit.gbm, newdata=validation,  type = "prob")
-fit.gbm_pred_cutoff_50 <- ifelse( fit.gbm_pred[,2] > 0.5, 1,0)
-# Constructing a confusion matrix
+  fit.gbm_pred_cutoff_50 <- ifelse( fit.gbm_pred[,2] > 0.5, 1,0)
   fit.gbm_conf_matrix_50 <- table(validation$churn, fit.gbm_pred_cutoff_50) %>% confusionMatrix()
-
 fit.gbm_conf_matrix_50
 ```
 ```{r}
@@ -118,9 +116,8 @@ WekaForest <- make_Weka_classifier("weka/classifiers/trees/RandomForest")
 Weka_forest_model <- WekaForest(churn ~ ., data=final_training_set)
 
 Weka_forest_predictions <- predict(Weka_forest_model, newdata = validation, type = "probability")
-Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
-
-Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix()
+  Weka_forest_pred_cutoff_50 <- ifelse(Weka_forest_predictions[,2] > 0.5, 1, 0)
+  Weka_forest_conf_matrix_50 <- table(validation$churn, Weka_forest_pred_cutoff_50) %>% confusionMatrix()
 Weka_forest_conf_matrix_50
 ```
 ```{r}
@@ -234,7 +231,7 @@ library(RColorBrewer)
   
   frame2
 ```
-Full Visual
+Full Visual - see final_model_viz.pdf
 ```{r}
 grid.arrange(
       frame1, frame2, frame4, frame3,
@@ -246,7 +243,7 @@ Highest Payoff - adjust model to >= 0.49
 #install.packages("SDMTools")
 library(SDMTools)
 
-# the lowest true-negative count is found when the threshold is changed to to 0.49
+# the lowest false-positive count is found when the threshold is changed to to 0.49
 payoffMatrix_forest <- data.frame(threshold = seq(from = 0.4, to = 0.6, by= 0.01), payoff = NA)
 for(i in 1:length(payoffMatrix_forest$threshold)) {
   confMatrix <- confusion.matrix(validation$churn, Weka_forest_predictions[,2], threshold = payoffMatrix_forest$threshold[i])
@@ -257,7 +254,7 @@ payoffMatrix_forest
 Weka_forest_conf_matrix_49 <- table(validation$churn, ifelse(Weka_forest_predictions[,2] >= 0.49, 1, 0)) %>% confusionMatrix()
 Weka_forest_conf_matrix_49
 ```
-Calculate Lift
+Calculate Lift for top 2 models
 ```{r}
 #install.packages("ROCR")
 library(ROCR)
@@ -424,7 +421,7 @@ Model_Comparison
 
 Staistical Significance
 ```{r}
-# using lower, avg and upper AUC values since I couldnt get 10-fold to work within memory constraints, mu is AUC average from basic model
+# using lower, avg and upper AUC values since I couldnt get 10-fold to work on Random Forest within memory constraints, mu is AUC average from basic model
 t.test(x=c(65.45,66.2,66.95), data = tele_clean, alternative = "greater", mu =62.14)
 ```
 
