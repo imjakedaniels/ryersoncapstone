@@ -440,7 +440,7 @@ Target_Customers
 ```
 
 
-Total_Targeted = 19562
+Total_Validation = 19562
 Fraction_Targeted = 0.04544525
 Targeted_Total = length(Target_Customers$Customer_ID) = 889
 Fraction_of_WouldBe = length(which(Target_Customers$churn == 1))/length(which(Target_Customers$churn) = 677/889 = 0.7615298
@@ -455,11 +455,13 @@ Expected_Customer_Value = mean(Billing$avgrev) * mean(Customer$months) = 1090.75
 
 The first term within the brackets reflects profit contribution among the βγ fraction of
 contacted customers who are would-be churners and decide based on the incentive to stay
-with the company. The firm retrieves their lifetime value at a cost of c+δ. The second
-term within the brackets reflects profit contribution among the β(1-γ) fraction of
+with the company. The firm retrieves their lifetime value at a cost of c+δ. 
+
+The second term within the brackets reflects profit contribution among the β(1-γ) fraction of
 contacted would-be churners who do not accept the offer and leave the firm. The loss
-from these customers is c, since they do not accept the offer. The third term within the
-brackets reflects profit contribution among the (1-β) fraction of contacted customers who
+from these customers is c, since they do not accept the offer. 
+
+The third term within the brackets reflects profit contribution among the (1-β) fraction of contacted customers who
 are not would-be churners. We assume these customers accept the offer and cost the
 company c+δ. These customers represent the wasted money for the firm. They were not
 going to churn yet the firm spent incentive money on them.
