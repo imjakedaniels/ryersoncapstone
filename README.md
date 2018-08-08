@@ -23,3 +23,7 @@ Using this information, I will simulate ad-hoc reporting using Tableau. Ex. Stud
 https://public.tableau.com/profile/jake.daniels#!/vizhome/SimpleChurnDashboard/ChurnSimpleDash
 
 This all will showcase my ability to optimize and compare classification models from different packages, utilize pre-built reporting tool (Tableau) to generate reports, design & interact with a cloud-based dataset by writing scripts and connections and cleaning & mutating a dataset in R.
+
+Results:
+
+The Churn Management Program is projected to retain $7,831,250 from a sample of 500,000 customers when offering a $50 rebate at 50c cost to communicate to the 5% likeliest-to-churn customer as predicted by our Random Forest Model at a 30% success rate. The success rate effectiveness will depend on the campaign (e-mail or telemarketing) incorporating friendlier trends into the offer to lower the customer's likelihood to churn. Ex. Increase their phone usage, tie the discount to monthly terms, or offer new product at reduced rate.
