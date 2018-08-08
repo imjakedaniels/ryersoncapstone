@@ -436,9 +436,22 @@ Target_Customers <- validation_set %>%
 filter(validation_set$`Weka_forest_predictions[, 2]` > 0.7) 
 
 Target_Customers <- tele_clean[which(tele_clean$Customer_ID %in% as.character(Target_Customers$`tele_clean[row.names(customers), ]$Customer_ID`)),]
+
 Target_Customers
 ```
 
+Lift and Gain Charts
+```{r}
+require(ROCR)
+pred <- prediction(Weka_forest_predictions[, 2],validation$churn)
+gain <- performance(pred, "tpr", "rpp")
+plot(gain, main = "Gain Chart", colorize = T)
+abline(a=0, b=1)
+
+lift <- performance(pred, "lift", "rpp")
+plot(lift, main = "Lift Chart", colorize = T)
+abline(h=1)
+```
 
 Total_Validation = 19562
 Fraction_Targeted = 0.04544525
@@ -449,10 +462,16 @@ SuccessRate = 0.3
 Contact_Cost = 0.5
 Expected_Customer_Value = mean(Billing$avgrev) * mean(Customer$months) = 1090.75
 
- Total Customers * Did Accept Who Would Leave + Would Not Accept + Accepted but were gonna stay
+ Targeted Customers * Did Accept Who Would Leave + Would Not Accept + Accepted but were gonna stay
           Nα           { βγ(LVC-c-δ)             +   β(1-γ)(-c)   +        (1-β)(-c-δ) }
+```{r}
+19562*0.04544525*(0.3*0.7615298*(1090.75-50-0.5) + 0.7615298*(1-0.3)*(-.5) + (1-0.7615298)*(-0.50-50))
+#      889                  237.6544             +     -0.2665354        +     - 12.04275
 
+#      889               225.3451
 
+#     $200,331.80
+```                          
 The first term within the brackets reflects profit contribution among the βγ fraction of
 contacted customers who are would-be churners and decide based on the incentive to stay
 with the company. The firm retrieves their lifetime value at a cost of c+δ. 
@@ -466,15 +485,25 @@ are not would-be churners. We assume these customers accept the offer and cost t
 company c+δ. These customers represent the wasted money for the firm. They were not
 going to churn yet the firm spent incentive money on them.
 
-```{r}
-19562*0.04544525*(0.3*0.7615298*(1090.75-50-0.5) + 0.7615298*(1-0.3)*(-.5) + (1-0.7615298)*(-0.50-50))
-#      889             0.3(248.0686)             -       0.2665354         -     12.04275
-```                       
+
+
 Of the 889 at-risk (predicted >70%) customers, worth 1090.75 each, totals $969,676 expected to churn.
+
+Those in this range of predictions are expected to churn at a rate of ~76% or $704,249 -- if we are 30% successful, we can retain $211,274 of that money. Once we factor in punishments for marketing to customers who do not accept the offer and leave, as well as customers who were going to stay and accepted the offer anyway, it rounds the revenue down to $200,331.80
 
 The Churn Managemet Program at a 30% success rate will retain $200,331.80 from customers when offering a $50 rebate at 50 cents a call. 
 
-Those in this range of predictions are expected to churn at a rate of ~76% or $738,437, if we are 30% successful, we can retain $221,531 of that money -- however, once we factor in punishments for marketing to customers who do not accept the offer and leave, as well as custoemrs who were going to stay and accepted the offer anyway, it rounds the revenue down to $200,331.80
+
+Once Again with larger and rounded numbers
+
+   Nα           {    βγ  (LVC-c-δ)    +       β(1-γ)(-c)    +       (1-β)(-c-δ) }
+500000*0.05 * ((0.75*.3)*(1500-.5-50) + 0.75*(1-0.3)*(-0.5) + (1-0.75)*(-.5-50))
+
+#    25000 *           326.1375       +        -0.2625      +        -12.625
+
+#    25000 *           313.25
+
+#   $7,831,250
 
 Save Model
 ```{r}
