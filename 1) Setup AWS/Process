@@ -1,6 +1,0 @@
-1) Download the dataset
-2) Run the R Script to Prepare Tables
-3) Create AWS Server
-4) Use MySQL Workbench and connect to AWS server
-5) Run the SQL script in MySQL Workbench
-6) Use the Markdown file to connect to AWS in R and pull info
