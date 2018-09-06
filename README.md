@@ -129,16 +129,16 @@ removed5 <- caret_high_correlation$method$ignore
 ```
 
 **Part 4)**
-I will then train, validate and compare classification methods with R, using the following models: base R's Logistic Regression, Caret's 10-Fold Logistic Regression, Caret's Gradient Boost Machine, Weka's LogitBoost, Weka's Naive Bayes, and Weka's Random Forest models and evaluate the best model based on AUC, Lift and False-Positive Rate. I can then evaluate the projected revenue earned by my Churn Management Program which targets the top 5% of predicted-to-chun customers with a $50 rebate aimed to retain 30%. This is why a strong lift and low false-positive rate benefit the goal of the Churn Management Program.
-[!Model Performance](https://github.com/imjakedaniels/ryersoncapstone/blob/master/4%20Modelling/model_metrics_comparison.PNG?raw=true)
+I will then train, validate and compare classification methods with R, using the following models: base R's Logistic Regression, Caret's 10-Fold Logistic Regression, Caret's Gradient Boost Machine, Weka's LogitBoost, Weka's Naive Bayes, and Weka's Random Forest models and evaluate the best model based on AUC, Lift and False-Positive Rate. I can then evaluate the projected revenue earned by my Churn Management Program which targets the top 5% of predicted-to-chun customers with a $50 rebate aimed to retain 30%. This is why a strong lift and low false-positive rate benefit the goal of the Churn Management Program. 
+[!Predictive Model Performances](https://github.com/imjakedaniels/ryersoncapstone/blob/master/4%20Modelling/model_metrics_comparison.PNG?raw=true "Predictive Model Performances")
 
 Random Forest visual
-[!Final Model](https://github.com/imjakedaniels/ryersoncapstone/blob/master/4%20Modelling/final_model_visual.pdf?raw=true)
+[!Final Model](https://github.com/imjakedaniels/ryersoncapstone/blob/master/4%20Modelling/final_model_visual.pdf?raw=true "Final Model")
 
 Using this information, I will simulate ad-hoc reporting using Tableau. Ex. Studying behaviours of new home owners with a newborn child. As well, generate monthly earnings and demographics. More here: [Jake's Public Tableau](https://public.tableau.com/profile/jake.daniels#!/vizhome/SimpleChurnDashboard/ChurnSimpleDash)
 
-[!Churn DashBoard](https://github.com/imjakedaniels/ryersoncapstone/blob/master/Tableau%20Reports/Notable%20Examples/Simple%20Churn%20Dash.png?raw=true)
-[!Equipment Age](https://github.com/imjakedaniels/ryersoncapstone/blob/master/Tableau%20Reports/Notable%20Examples/Equipment_Age.PNG?raw=true)
+[!Churn DashBoard](https://github.com/imjakedaniels/ryersoncapstone/blob/master/Tableau%20Reports/Notable%20Examples/Simple%20Churn%20Dash.png?raw=true "Churn DashBoard")
+[!Equipment Age](https://github.com/imjakedaniels/ryersoncapstone/blob/master/Tableau%20Reports/Notable%20Examples/Equipment_Age.PNG?raw=true "Equipment Age")
 
 This all will showcase my ability to optimize and compare classification models from different packages, utilize pre-built reporting tool (Tableau) to generate reports, design & interact with a cloud-based dataset by writing scripts and connections and cleaning & mutating a dataset in R.
 
