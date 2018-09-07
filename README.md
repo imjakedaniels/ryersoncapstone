@@ -133,7 +133,7 @@ I will then train, validate and compare classification methods with R, using the
 ![Predictive Model Performances](https://github.com/imjakedaniels/ryersoncapstone/blob/master/4%20Modelling/model_metrics_comparison.PNG?raw=true "Predictive Model Performances")
 
 Random Forest visual
-![Final Model](https://github.com/imjakedaniels/ryersoncapstone/blob/master/4%20Modelling/final_model_visual.pdf?raw=true "Final Model")
+![Final Model](https://github.com/imjakedaniels/ryersoncapstone/blob/master/4%20Modelling/final_model_visual.PNG?raw=true "Final Model")
 
 Using this information, I will simulate ad-hoc reporting using Tableau. Ex. Studying behaviours of new home owners with a newborn child. As well, generate monthly earnings and demographics. More here: [Jake's Public Tableau](https://public.tableau.com/profile/jake.daniels#!/vizhome/SimpleChurnDashboard/ChurnSimpleDash)
 
