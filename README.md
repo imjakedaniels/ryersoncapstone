@@ -1,4 +1,4 @@
-# Churn Management Program - Ryerson Capstone Assignment
+# Churn Management Program - Ryerson Capstone Project
 
 This project aims to develop a statistically stronger classification model to predict customer churn compared to a standard, non-dimensionality-reduced, logistic-regression model. I will visualize the trends responsible for increasing the propensity to churn then calculate the Lifetime Value of a Customer (LVC) and lift to budget a Churn Management Program centred around targeting false-positive customers who are at-risk to churn and suggest solutions that can help reduce the risk.
 
